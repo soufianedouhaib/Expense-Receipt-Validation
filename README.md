@@ -129,3 +129,69 @@ public/logo.png    Applied AI wordmark (transparent, inverts in dark mode)
   and only while the "Remember my details" box is ticked.
 - Colors live as CSS custom properties at the top of `styles.css`. To apply the
   AppliedAI UI Guidelines palette, change the tokens; nothing below them needs editing.
+
+---
+
+## Manager view
+
+A second page at `/manager.html` lists every submission. It is gated by a shared
+access code, and it needs storage — without Redis there is no history to show.
+
+### Setup
+
+1. **Vercel → Storage → Upstash Redis → Create.** Connect it to the project.
+   Vercel writes `KV_REST_API_URL` and `KV_REST_API_TOKEN` into your environment
+   variables automatically. (A direct Upstash project sets `UPSTASH_REDIS_REST_URL`
+   and `UPSTASH_REDIS_REST_TOKEN` instead — the code accepts either.)
+2. **Vercel → Storage → Blob → Create.** Connect it. This sets `BLOB_READ_WRITE_TOKEN`
+   and is what lets managers open the actual receipt.
+3. **Settings → Environment Variables** → add `MANAGER_ACCESS_CODE`. Any long random
+   string. This is what managers type.
+4. Redeploy.
+
+For local work, copy all four values into `.env`.
+
+`GET /api/health` reports which of the three are live:
+
+```json
+{ "ok": true, "history": true, "receiptArchive": true, "managerAccess": true }
+```
+
+### How it fits together
+
+Each submission writes a record to Redis (`expense:case:<caseId>`, indexed by time
+in `expense:index`) and a copy of the receipt to Blob. The employee's browser
+updates the record as it polls. If they close the tab mid-run the record would sit
+at "running" forever, so anything still running is re-checked against Opus whenever
+a manager loads the list.
+
+Receipts are never linked to directly. Blob URLs stay server-side; the manager's
+"Open receipt" button hits `/api/manager/receipt/:caseId`, which checks the access
+code and streams the file back.
+
+### Manager routes
+
+| Route | Purpose |
+|---|---|
+| `POST /api/manager/verify` | Checks the access code |
+| `GET /api/manager/submissions` | The list, newest first, refreshing stale runs |
+| `GET /api/manager/submissions/:caseId` | One submission in full |
+| `GET /api/manager/receipt/:caseId` | Streams the archived receipt |
+| `GET /api/manager/export.csv` | The list as CSV |
+
+### What the access code is and isn't
+
+It is one shared secret checked server-side on every manager request, held in
+`sessionStorage` so it's gone when the tab closes. It keeps employees out of a page
+listing their colleagues' names, emails and claim amounts.
+
+It is not identity. Everyone shares one code, so you cannot tell who looked at what,
+and rotating it means telling every manager the new one. If you need an audit trail
+of who viewed which claim, that needs real per-person login — a different build.
+
+### Data you are now storing
+
+Adding this means you keep employee names, emails, job titles, phone numbers and
+receipt images for a year (`RECORD_TTL_SECONDS` in `server.js`). That is personal
+data in a second place beyond Opus. Worth a word with whoever owns data retention
+at AAICO before this goes to the whole company.

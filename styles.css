@@ -606,3 +606,245 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ================================================================== *
+   Manager view
+   ================================================================== */
+
+/* ------------------------------ tabs ------------------------------ */
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  position: relative;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s ease, border-color .15s ease;
+}
+
+.tab:hover { color: var(--ink); }
+
+.tab.is-current {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.shell-wide { max-width: 1040px; }
+
+/* ------------------------------ gate ------------------------------ */
+
+.gate { display: flex; justify-content: center; padding-block: 28px; }
+
+.card-gate { width: 100%; max-width: 400px; }
+
+.card-gate h1 {
+  margin: 0 0 6px;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.gate-sub {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+.card-gate .actions { margin-top: 18px; }
+.card-gate .btn { width: 100%; }
+
+/* --------------------------- list header -------------------------- */
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.intro-tight { margin-bottom: 0; }
+.intro-tight p { font-size: 14px; }
+
+.list-actions { display: flex; gap: 8px; }
+
+.btn-sm { font-size: 13.5px; padding: 8px 14px; }
+
+/* ---------------------------- toolbar ----------------------------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 16px;
+  padding: 16px 18px;
+}
+
+.field-search { flex: 1 1 240px; }
+.field-filter { flex: 0 0 200px; }
+
+input[type="search"] {
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+  width: 100%;
+}
+
+input[type="search"]:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+/* ----------------------------- stats ------------------------------ */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* Semantic weight only where it means something — a left stripe on the two
+   counts a manager acts on, nothing on the neutral ones. */
+.stat-ok   { border-left: 3px solid var(--ok-line); }
+.stat-warn { border-left: 3px solid var(--warn-line); }
+
+.stat-num {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ----------------------------- table ------------------------------ */
+
+.table-card { padding: 0; overflow: hidden; }
+
+.table-scroll { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  padding: 12px 16px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table th.num, .table td.num { text-align: right; }
+
+.table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td { border-bottom: 0; }
+
+.table tbody tr {
+  cursor: pointer;
+  transition: background .12s ease;
+}
+
+.table tbody tr:hover { background: var(--sunken); }
+
+.table tbody tr:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.cell-strong { display: block; font-weight: 500; }
+.cell-sub { display: block; font-size: 12.5px; color: var(--ink-4); }
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.empty {
+  margin: 0;
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-4);
+}
+
+/* ----------------------------- detail ----------------------------- */
+
+.back-link {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.back-link:hover { color: var(--ink); }
+
+.facts-flush {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* --------------------------- responsive --------------------------- */
+
+@media (max-width: 760px) {
+  .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .field-filter { flex: 1 1 100%; }
+  .list-head { align-items: flex-start; }
+}
+
+@media (max-width: 560px) {
+  .tabs { padding: 0 8px; }
+  .tab { padding: 11px 10px; font-size: 13px; }
+  .list-actions { width: 100%; }
+  .list-actions .btn { flex: 1; }
+}
