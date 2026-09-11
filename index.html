@@ -26,13 +26,16 @@
         <p>Upload your receipt and tell us the total you're claiming. We'll read the receipt, check the amount matches, and send it to your manager.</p>
       </div>
 
-      <form id="claim-form" novalidate>
+      <form id="claim-form" class="stack" novalidate>
 
-        <fieldset class="card">
-          <legend class="card-legend">
-            <span class="step-num">1</span>
-            Your receipt
-          </legend>
+        <section class="card" aria-labelledby="h-receipt">
+          <header class="card-head">
+            <span class="step-num" aria-hidden="true">1</span>
+            <div class="card-head-text">
+              <h2 class="card-title" id="h-receipt">Your receipt</h2>
+              <p class="card-sub">The original receipt, as a PDF or a photo</p>
+            </div>
+          </header>
 
           <div id="dropzone" class="dropzone" tabindex="0" role="button"
                aria-label="Choose a receipt file or drop one here">
@@ -63,24 +66,25 @@
             </div>
           </div>
           <p class="field-error" id="err-receipt" hidden></p>
-        </fieldset>
+        </section>
 
-        <fieldset class="card">
-          <legend class="card-legend">
-            <span class="step-num">2</span>
-            Amount claimed
-          </legend>
-
-          <div class="row">
-            <div class="field field-grow">
-              <label for="amount">Total on the receipt</label>
-              <input type="number" id="amount" name="amount" inputmode="decimal"
-                     step="0.01" min="0" placeholder="30.00" required>
-              <p class="field-error" id="err-amount" hidden></p>
+        <section class="card" aria-labelledby="h-amount">
+          <header class="card-head">
+            <span class="step-num" aria-hidden="true">2</span>
+            <div class="card-head-text">
+              <h2 class="card-title" id="h-amount">Amount claimed</h2>
+              <p class="card-sub">The total exactly as it appears on the receipt</p>
             </div>
-            <div class="field field-currency">
-              <label for="currency">Currency</label>
-              <select id="currency" name="currency" required>
+          </header>
+
+          <div class="field field-amount">
+            <label for="amount">Total</label>
+            <div class="amount-group">
+              <input type="number" id="amount" name="amount" inputmode="decimal"
+                     step="0.01" min="0" placeholder="0.00" required
+                     aria-describedby="amount-hint">
+              <span class="amount-divider" aria-hidden="true"></span>
+              <select id="currency" name="currency" aria-label="Currency" required>
                 <option value="AED" selected>AED</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -90,38 +94,39 @@
                 <option value="INR">INR</option>
               </select>
             </div>
+            <p class="field-error" id="err-amount" hidden></p>
+            <p class="hint" id="amount-hint">If this doesn't match what we read on the receipt, the claim comes back to you.</p>
           </div>
-          <p class="hint">Enter the total exactly as it appears on the receipt. If it doesn't match what we read, the claim comes back to you.</p>
-        </fieldset>
+        </section>
 
-        <fieldset class="card">
-          <legend class="card-legend">
-            <span class="step-num">3</span>
-            Your details
-          </legend>
+        <section class="card" aria-labelledby="h-details">
+          <header class="card-head">
+            <span class="step-num" aria-hidden="true">3</span>
+            <div class="card-head-text">
+              <h2 class="card-title" id="h-details">Your details</h2>
+              <p class="card-sub">Who the claim is for, and who approves it</p>
+            </div>
+          </header>
 
-          <div class="row">
-            <div class="field field-grow">
+          <div class="grid-2">
+            <div class="field">
               <label for="fullName">Full name</label>
               <input type="text" id="fullName" name="fullName" autocomplete="name"
                      placeholder="Mahmoud Essam Sharshira" required>
               <p class="field-error" id="err-fullName" hidden></p>
             </div>
-            <div class="field field-grow">
+            <div class="field">
               <label for="email">Work email</label>
               <input type="email" id="email" name="email" autocomplete="email"
                      placeholder="you@aaico.com" required>
               <p class="field-error" id="err-email" hidden></p>
             </div>
-          </div>
-
-          <div class="row">
-            <div class="field field-grow">
+            <div class="field">
               <label for="jobTitle">Job title</label>
               <input type="text" id="jobTitle" name="jobTitle" autocomplete="organization-title"
                      placeholder="AI Implementation Engineer">
             </div>
-            <div class="field field-grow">
+            <div class="field">
               <label for="managerName">Manager</label>
               <input type="text" id="managerName" name="managerName"
                      placeholder="Omar Busaileh">
@@ -130,17 +135,17 @@
 
           <details class="optional">
             <summary>Optional details</summary>
-            <div class="row">
-              <div class="field field-grow">
+            <div class="grid-3">
+              <div class="field">
                 <label for="phoneNumber">Phone number</label>
                 <input type="tel" id="phoneNumber" name="phoneNumber"
                        autocomplete="tel" placeholder="+971 50 750 2589">
               </div>
-              <div class="field field-grow">
+              <div class="field">
                 <label for="dateOfBirth">Date of birth</label>
                 <input type="date" id="dateOfBirth" name="dateOfBirth">
               </div>
-              <div class="field field-grow">
+              <div class="field">
                 <label for="gender">Gender</label>
                 <select id="gender" name="gender">
                   <option value="">Prefer not to say</option>
@@ -155,7 +160,7 @@
             <input type="checkbox" id="remember" checked>
             <span>Remember my details on this device</span>
           </label>
-        </fieldset>
+        </section>
 
         <p class="form-error" id="form-error" hidden></p>
 
@@ -185,8 +190,8 @@
 
     <!-- ===================== RESULT ===================== -->
     <section id="view-result" class="view" hidden>
-      <div class="card" id="result-card">
-        <div class="verdict" id="verdict">
+      <div class="card">
+        <div class="verdict">
           <span class="badge" id="verdict-badge">—</span>
           <h2 id="verdict-title">Result</h2>
         </div>
