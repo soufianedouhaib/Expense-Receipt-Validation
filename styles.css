@@ -131,6 +131,7 @@ body {
 .masthead {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
   padding: 18px 24px;
   background: var(--surface);
@@ -197,22 +198,42 @@ body {
   box-shadow: var(--shadow);
 }
 
-.card-legend {
+/* Card header: numbered marker + title + one line of guidance, separated
+   from the controls by a rule that spans the full card width. */
+
+.card-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0;
-  margin-bottom: 16px;
-  font-size: 15px;
+  align-items: flex-start;
+  gap: 12px;
+  margin: -4px -22px 20px;
+  padding: 0 22px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-head-text { min-width: 0; }
+
+.card-title {
+  margin: 0;
+  font-size: 15.5px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+}
+
+.card-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
 }
 
 .step-num {
+  flex: none;
   display: grid;
   place-items: center;
   width: 22px;
   height: 22px;
+  margin-top: 0.5px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
@@ -272,12 +293,63 @@ body {
 
 /* ----------------------------- fields ----------------------------- */
 
-.row { display: flex; flex-wrap: wrap; gap: 14px; }
-.row + .row { margin-top: 14px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+.grid-2, .grid-3 { display: grid; gap: 14px 16px; }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .field { display: flex; flex-direction: column; min-width: 0; }
-.field-grow { flex: 1 1 200px; }
-.field-currency { flex: 0 0 118px; }
+
+/* The amount and its currency are one value, so they read as one control. */
+.field-amount { max-width: 280px; }
+
+.amount-group {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.amount-group:focus-within {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.amount-group.invalid,
+.amount-group:has(input.invalid) { border-color: var(--err-ink); }
+
+.amount-group input[type="number"] {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.amount-group input:focus { outline: none; box-shadow: none; }
+
+.amount-divider { width: 1px; background: var(--line); margin: 7px 0; }
+
+.amount-group select {
+  flex: none;
+  width: auto;
+  border: 0;
+  background: transparent;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding-inline: 10px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.amount-group select:focus { outline: none; box-shadow: none; }
 
 label {
   font-size: 12.5px; font-weight: 500;
@@ -519,7 +591,9 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
   .shell { padding-block: 28px 48px; padding-inline: 16px; }
   .intro h1 { font-size: 22px; }
   .card { padding: 18px; border-radius: var(--r-md); }
-  .field-currency { flex: 1 1 100%; }
+  .card-head { margin: -3px -18px 18px; padding: 0 18px 14px; }
+  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .field-amount { max-width: none; }
   .actions .btn { width: 100%; }
   .actions-split { flex-direction: column-reverse; }
   .actions-split .btn { width: 100%; }
