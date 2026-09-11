@@ -16,6 +16,36 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  /* Read a response that is *supposed* to be JSON. When something in front of
+     the app answers instead — a platform 413, a 502, a crashed function — the
+     body is an HTML error page, and blindly calling res.json() throws a parse
+     error that hides the status code. Surface the status instead. */
+  function readJson(res) {
+    return res.text().then(function (text) {
+      var body;
+      try {
+        body = JSON.parse(text);
+      } catch (e) {
+        var snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+        var hint = '';
+        if (res.status === 413) {
+          hint = ' The receipt is too large for the server to accept — try a file under 4MB.';
+        } else if (res.status === 404) {
+          hint = ' The API route was not found, so the backend is not being reached.';
+        } else if (res.status >= 500) {
+          hint = ' The backend errored before it could reply — check the function logs.';
+        }
+        var err = new Error(
+          'The server returned ' + res.status + ' ' + (res.statusText || '') +
+          ' instead of a result.' + hint + (snippet ? ' Response began: "' + snippet + '"' : '')
+        );
+        err.status = res.status;
+        throw err;
+      }
+      return { res: res, body: body };
+    });
+  }
+
   var views = {
     form: $('view-form'),
     progress: $('view-progress'),
@@ -31,6 +61,18 @@
   var pollTimer = null;
   var pollStartedAt = 0;
   var lastPayload = null;
+
+  /* The fileUrl Opus returns for the receipt is an internal reference under
+     /media/private/ — it is not served over HTTP and 404s in a browser. So
+     "View receipt" points at the copy the browser already holds instead. */
+  var receiptObjectUrl = null;
+
+  function releaseReceiptUrl() {
+    if (receiptObjectUrl) {
+      URL.revokeObjectURL(receiptObjectUrl);
+      receiptObjectUrl = null;
+    }
+  }
 
   /* ------------------------------ views ------------------------------ */
 
@@ -222,14 +264,19 @@
     lastPayload = fd;
     submitBtn.disabled = true;
 
+    releaseReceiptUrl();
+    try {
+      receiptObjectUrl = URL.createObjectURL(fileInput.files[0]);
+    } catch (e) {
+      receiptObjectUrl = null;
+    }
+
     show('progress');
     markStep('upload');
     setStatusLine('Uploading your receipt…');
 
     fetch('/api/submit', { method: 'POST', body: fd })
-      .then(function (res) {
-        return res.json().then(function (body) { return { res: res, body: body }; });
-      })
+      .then(readJson)
       .then(function (r) {
         if (!r.res.ok) throw new Error(r.body.error || 'Submission failed.');
         markStep('read');
@@ -253,8 +300,9 @@
       }
 
       fetch('/api/status/' + encodeURIComponent(caseId))
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
+        .then(readJson)
+        .then(function (r) {
+          var data = r.body;
           if (data.state === 'running') {
             advanceProgress();
             pollTimer = setTimeout(tick, POLL_MS);
@@ -341,8 +389,8 @@
     $('type-reasoning').textContent = report.receipt_type_reasoning || '—';
 
     var link = $('receipt-link');
-    if (data.receiptUrl) {
-      link.href = data.receiptUrl;
+    if (receiptObjectUrl) {
+      link.href = receiptObjectUrl;
       link.hidden = false;
     } else {
       link.hidden = true;
@@ -361,10 +409,13 @@
   /* ------------------------------ resets ----------------------------- */
 
   $('new-claim').addEventListener('click', function () {
+    releaseReceiptUrl();
     setFile(null);
     $('amount').value = '';
     show('form');
   });
+
+  window.addEventListener('pagehide', releaseReceiptUrl);
 
   $('back-to-form').addEventListener('click', function () { show('form'); });
 
@@ -375,9 +426,7 @@
     setStatusLine('Resubmitting…');
 
     fetch('/api/submit', { method: 'POST', body: lastPayload })
-      .then(function (res) {
-        return res.json().then(function (body) { return { res: res, body: body }; });
-      })
+      .then(readJson)
       .then(function (r) {
         if (!r.res.ok) throw new Error(r.body.error || 'Submission failed.');
         startPolling(r.body.caseId);
