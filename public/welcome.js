@@ -177,6 +177,19 @@
     });
   }
 
+  $('guest-btn').addEventListener('click', function () {
+    $('guest-btn').disabled = true;
+    fetch('/api/auth/guest', { method: 'POST' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('Could not start a guest session.');
+        window.location.href = 'submit.html';
+      })
+      .catch(function (err) {
+        showError(err.message);
+        $('guest-btn').disabled = false;
+      });
+  });
+
   $('signin-form').addEventListener('submit', function (e) {
     e.preventDefault();
     $('err-signin').hidden = true;
