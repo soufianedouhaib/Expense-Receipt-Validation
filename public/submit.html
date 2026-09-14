@@ -22,7 +22,7 @@
     </div>
   </header>
 
-  <main class="shell">
+  <main class="shell shell-wide">
 
     <!-- ===================== FORM ===================== -->
     <section id="view-form" class="view">
@@ -31,24 +31,7 @@
         <p>Upload your receipt and tell us the total you're claiming. We'll read the receipt, check the amount matches, and send it to your manager.</p>
       </div>
 
-      <section class="card try-card" id="try-card" aria-labelledby="h-try">
-        <header class="try-head">
-          <div>
-            <span class="try-eyebrow">Try it</span>
-            <h2 class="card-title" id="h-try">Sample scenarios</h2>
-          </div>
-          <button type="button" class="btn btn-chrome" id="try-clear">Clear form</button>
-        </header>
-        <p class="card-sub try-sub">
-          No receipt to hand? Pick one of these and the form fills itself with a
-          sample receipt and the amount that goes with it. Submit it as normal to
-          see how the workflow decides.
-        </p>
-
-        <div class="try-grid" id="try-grid"></div>
-
-        <p class="try-status" id="try-status" hidden></p>
-      </section>
+      <div class="form-layout">
 
       <form id="claim-form" class="stack" novalidate>
 
@@ -206,6 +189,29 @@
           <button type="submit" class="btn btn-primary" id="submit-btn">Submit for validation</button>
         </div>
       </form>
+
+        <aside class="form-aside">
+          <section class="card try-card" id="try-card" aria-labelledby="h-try">
+            <header class="try-head">
+              <div>
+                <span class="try-eyebrow">Try it</span>
+                <h2 class="card-title" id="h-try">Sample scenarios</h2>
+              </div>
+            </header>
+            <p class="card-sub try-sub">
+              No receipt to hand? Pick one and the form fills itself with a sample
+              receipt and the amount that goes with it, then submit as normal.
+            </p>
+
+            <div class="try-grid" id="try-grid"></div>
+
+            <p class="try-status" id="try-status" hidden></p>
+
+            <button type="button" class="btn btn-chrome try-clear" id="try-clear">Clear form</button>
+          </section>
+        </aside>
+
+      </div>
     </section>
 
     <!-- ===================== PROGRESS ===================== -->

@@ -112,6 +112,11 @@
 
 * { box-sizing: border-box; }
 
+/* The browser hides [hidden] with display:none, but that comes from the user
+   agent sheet — any author rule setting display beats it. So `.btn[hidden]`,
+   `.grid-2[hidden]` and friends stayed visible. Settle it once, here. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--paper);
@@ -216,6 +221,23 @@ body {
 }
 
 .shell-full { max-width: none; padding: 0; }
+
+/* The claim page runs wider than the rest: the form keeps its comfortable
+   reading column and the sample scenarios sit beside it. Every other view on
+   that page (progress, result, failure) is pinned back to the form's width so
+   it stays aligned with the left edge rather than sprawling. */
+.shell-wide { max-width: 1020px; }
+
+.form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 312px);
+  gap: 20px;
+  align-items: start;
+}
+
+.form-aside { position: sticky; top: 20px; min-width: 0; }
+
+#view-progress, #view-result, #view-error { max-width: 660px; }
 
 .intro { margin-bottom: 24px; }
 
@@ -1091,13 +1113,9 @@ body.is-loading .split { visibility: hidden; }
   padding: 20px 22px;
 }
 
-.try-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+.try-head { margin-bottom: 2px; }
+
+.try-clear { width: 100%; margin-top: 14px; }
 
 .try-eyebrow {
   display: block;
@@ -1109,11 +1127,11 @@ body.is-loading .split { visibility: hidden; }
   margin-bottom: 4px;
 }
 
-.try-sub { margin: 8px 0 16px; max-width: 62ch; }
+.try-sub { margin: 6px 0 16px; }
 
 .try-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -1188,8 +1206,19 @@ body.is-loading .split { visibility: hidden; }
 .try-status.is-busy { color: var(--ink-4); }
 .try-status.is-error { color: var(--err-ink); }
 
+/* Below the two-column threshold the panel goes back on top, where it is
+   still the first thing seen, and spreads its cards out again. */
+@media (max-width: 900px) {
+  .shell-wide { max-width: 640px; }
+  .form-layout { grid-template-columns: minmax(0, 1fr); }
+  .form-aside { position: static; order: -1; margin-bottom: 16px; }
+  .try-grid { grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); }
+  .try-clear { width: auto; }
+}
+
 @media (max-width: 560px) {
-  .try-grid { grid-template-columns: 1fr; }
+  .try-grid { grid-template-columns: minmax(0, 1fr); }
+  .try-clear { width: 100%; }
 }
 
 /* ------------------------------------------------------------------
