@@ -459,6 +459,12 @@ function ownsClaim(session, record) {
 
 app.post('/api/auth/login', auth.login);
 
+/** No account: file one claim, typing your own name and email. */
+app.post('/api/auth/guest', (req, res) => {
+  const session = auth.startGuestSession(res);
+  res.json({ ok: true, guest: true, roles: session.roles });
+});
+
 app.post('/api/auth/logout', (req, res) => {
   auth.endSession(res);
   res.json({ ok: true });
@@ -471,6 +477,13 @@ app.get('/api/me', async (req, res) => {
 
   // "Manager" is configured nowhere. You become one the moment somebody names
   // you on a claim, so it is looked up fresh rather than stored in the cookie.
+  if (session.guest) {
+    return res.json({
+      signedIn: true, configured: true, guest: true,
+      email: '', name: '', roles: session.roles, defaultManager: '',
+    });
+  }
+
   const roles = session.roles.slice();
   try {
     if (await isManager(session.name)) roles.push('manager');
@@ -534,10 +547,23 @@ app.post('/api/submit', requireSignedIn, upload.single('receipt'), async (req, r
       return res.status(400).json({ error: 'An amount and a currency are required.' });
     }
 
-    // Identity comes from the signed-in session, never from the form, so a
-    // claim can only ever be filed in the name of the person submitting it.
-    const fullName = req.session.name;
-    const email = req.session.email;
+    // For a signed-in account, identity comes from the session and the form
+    // cannot override it. A guest has no identity to take, so they type it —
+    // and the record keeps a flag saying so, since it is unverified.
+    let fullName, email;
+    if (req.session.guest) {
+      fullName = String(req.body.fullName || '').trim();
+      email = String(req.body.email || '').trim().toLowerCase();
+      if (!fullName) {
+        return res.status(400).json({ error: 'Enter your name.' });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Enter a valid email address.' });
+      }
+    } else {
+      fullName = req.session.name;
+      email = req.session.email;
+    }
 
     const employeeRecord = buildEmployeeRecord(Object.assign({}, req.body, { fullName, email }));
     const submittedTotal = `${String(amount).trim()} ${String(currency).trim().toUpperCase()}`;
@@ -581,6 +607,7 @@ app.post('/api/submit', requireSignedIn, upload.single('receipt'), async (req, r
         jobTitle: (req.body.jobTitle || '').trim(),
         managerName: (req.body.managerName || '').trim(),
         phoneNumber: (req.body.phoneNumber || '').trim(),
+        unverified: Boolean(req.session.guest),
       },
       amount: String(amount).trim(),
       currency: String(currency).trim().toUpperCase(),
@@ -684,6 +711,7 @@ function toRow(record) {
     error: record.error || '',
     receiptName: record.receipt ? record.receipt.filename : '',
     hasReceipt: Boolean(record.receipt && record.receipt.blobUrl),
+    unverified: Boolean(emp.unverified),
   };
 }
 
@@ -698,6 +726,12 @@ function toRow(record) {
 async function resolveScope(req) {
   const wanted = String(req.query.scope || 'mine').toLowerCase();
   const session = req.session;
+
+  // A guest typed their email rather than proving it, so there is no "mine"
+  // that can safely be shown to them.
+  if (session.guest) {
+    return { error: 'Sign in to see claim history.' };
+  }
 
   if (wanted === 'all') {
     if (!isAdmin(session)) return { error: 'That view is for administrators.' };
