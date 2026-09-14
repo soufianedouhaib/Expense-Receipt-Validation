@@ -9,256 +9,59 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="welcome-body">
 
-  <header class="masthead">
-    <img class="logo" src="logo.png" alt="Applied AI" width="287" height="101">
-    <span class="masthead-divider" aria-hidden="true"></span>
-    <span class="masthead-title">Expense Receipt Validation</span>
-  </header>
+  <main class="welcome">
+    <div class="welcome-card">
 
-  <nav class="tabs" aria-label="Sections">
-    <a class="tab is-current" href="index.html" aria-current="page">Submit a claim</a>
-    <a class="tab" href="manager.html">Submissions</a>
-  </nav>
+      <img class="welcome-logo" src="logo.png" alt="Applied AI" width="846" height="140">
+      <h1 class="welcome-title">Expense Receipt Validation</h1>
 
-  <main class="shell">
+      <!-- ============ signed out ============ -->
+      <section id="view-signin" hidden>
+        <p class="welcome-sub" id="signin-sub">
+          Sign in with your work account to file an expense claim or review your team's.
+        </p>
+        <a class="btn btn-google" href="/api/auth/google" id="signin-btn">
+          <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"/>
+            <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33Z"/>
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"/>
+          </svg>
+          Sign in with Google
+        </a>
+        <p class="welcome-foot" id="domain-note"></p>
+      </section>
 
-    <!-- ===================== FORM ===================== -->
-    <section id="view-form" class="view">
-      <div class="intro">
-        <h1>Submit an expense receipt</h1>
-        <p>Upload your receipt and tell us the total you're claiming. We'll read the receipt, check the amount matches, and send it to your manager.</p>
-      </div>
+      <!-- ============ choose a role ============ -->
+      <section id="view-roles" hidden>
+        <p class="welcome-sub">
+          Signed in as <strong id="who-name"></strong>. Choose how you want to work.
+        </p>
 
-      <form id="claim-form" class="stack" novalidate>
+        <div class="role-grid" id="role-grid"></div>
 
-        <section class="card" aria-labelledby="h-receipt">
-          <header class="card-head">
-            <span class="step-num" aria-hidden="true">1</span>
-            <div class="card-head-text">
-              <h2 class="card-title" id="h-receipt">Your receipt</h2>
-              <p class="card-sub">The original receipt, as a PDF or a photo</p>
-            </div>
-          </header>
+        <button type="button" class="link-btn" id="signout-link">Sign out</button>
+      </section>
 
-          <div id="dropzone" class="dropzone" tabindex="0" role="button"
-               aria-label="Choose a receipt file or drop one here">
-            <input type="file" id="receipt" name="receipt" hidden
-                   accept=".jpeg,.jpg,.png,.pdf,.docx,.csv,.xls,.xlsx,.txt,.json,.html,.xml">
-            <div class="dropzone-empty" id="dropzone-empty">
-              <svg class="dz-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 16V4m0 0L8 8m4-4 4 4" stroke="currentColor" stroke-width="1.5"
-                      stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor"
-                      stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-              <p class="dz-primary">Drop your receipt here, or <span class="dz-link">browse</span></p>
-              <p class="dz-secondary">PDF or image, up to 10MB</p>
-            </div>
-            <div class="dropzone-filled" id="dropzone-filled" hidden>
-              <div class="file-chip">
-                <svg class="file-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M14 3v5h5M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"
-                        stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                </svg>
-                <span class="file-meta">
-                  <span class="file-name" id="file-name"></span>
-                  <span class="file-size" id="file-size"></span>
-                </span>
-                <button type="button" class="file-remove" id="file-remove" aria-label="Remove file">&times;</button>
-              </div>
-            </div>
-          </div>
-          <p class="field-error" id="err-receipt" hidden></p>
-        </section>
+      <!-- ============ not configured ============ -->
+      <section id="view-unconfigured" hidden>
+        <p class="welcome-sub">
+          Sign-in is not set up on this deployment yet. Add the Google credentials
+          in Vercel and redeploy — the README has the steps.
+        </p>
+      </section>
 
-        <section class="card" aria-labelledby="h-amount">
-          <header class="card-head">
-            <span class="step-num" aria-hidden="true">2</span>
-            <div class="card-head-text">
-              <h2 class="card-title" id="h-amount">Amount claimed</h2>
-              <p class="card-sub">The total exactly as it appears on the receipt</p>
-            </div>
-          </header>
+      <p class="welcome-error" id="welcome-error" hidden></p>
 
-          <div class="field field-amount">
-            <label for="amount">Total</label>
-            <div class="amount-group">
-              <input type="number" id="amount" name="amount" inputmode="decimal"
-                     step="0.01" min="0" placeholder="0.00" required
-                     aria-describedby="amount-hint">
-              <span class="amount-divider" aria-hidden="true"></span>
-              <select id="currency" name="currency" aria-label="Currency" required>
-                <option value="AED" selected>AED</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="SAR">SAR</option>
-                <option value="EGP">EGP</option>
-                <option value="INR">INR</option>
-              </select>
-            </div>
-            <p class="field-error" id="err-amount" hidden></p>
-            <p class="hint" id="amount-hint">If this doesn't match what we read on the receipt, the claim comes back to you.</p>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="h-details">
-          <header class="card-head">
-            <span class="step-num" aria-hidden="true">3</span>
-            <div class="card-head-text">
-              <h2 class="card-title" id="h-details">Your details</h2>
-              <p class="card-sub">Who the claim is for, and who approves it</p>
-            </div>
-          </header>
-
-          <div class="grid-2">
-            <div class="field">
-              <label for="fullName">Full name</label>
-              <input type="text" id="fullName" name="fullName" autocomplete="name"
-                     placeholder="Mahmoud Essam Sharshira" required>
-              <p class="field-error" id="err-fullName" hidden></p>
-            </div>
-            <div class="field">
-              <label for="email">Work email</label>
-              <input type="email" id="email" name="email" autocomplete="email"
-                     placeholder="you@aaico.com" required>
-              <p class="field-error" id="err-email" hidden></p>
-            </div>
-            <div class="field">
-              <label for="jobTitle">Job title</label>
-              <input type="text" id="jobTitle" name="jobTitle" autocomplete="organization-title"
-                     placeholder="AI Implementation Engineer">
-            </div>
-            <div class="field">
-              <label for="managerName">Manager</label>
-              <input type="text" id="managerName" name="managerName"
-                     placeholder="Omar Busaileh">
-            </div>
-          </div>
-
-          <details class="optional">
-            <summary>Optional details</summary>
-            <div class="grid-3">
-              <div class="field">
-                <label for="phoneNumber">Phone number</label>
-                <input type="tel" id="phoneNumber" name="phoneNumber"
-                       autocomplete="tel" placeholder="+971 50 750 2589">
-              </div>
-              <div class="field">
-                <label for="dateOfBirth">Date of birth</label>
-                <input type="date" id="dateOfBirth" name="dateOfBirth">
-              </div>
-              <div class="field">
-                <label for="gender">Gender</label>
-                <select id="gender" name="gender">
-                  <option value="">Prefer not to say</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                </select>
-              </div>
-            </div>
-          </details>
-
-          <label class="remember">
-            <input type="checkbox" id="remember" checked>
-            <span>Remember my details on this device</span>
-          </label>
-        </section>
-
-        <p class="form-error" id="form-error" hidden></p>
-
-        <div class="actions">
-          <button type="submit" class="btn btn-primary" id="submit-btn">
-            Submit for validation
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <!-- ===================== PROGRESS ===================== -->
-    <section id="view-progress" class="view" hidden>
-      <div class="card card-status">
+      <div class="welcome-loading" id="welcome-loading">
         <div class="spinner" aria-hidden="true"></div>
-        <h2>Checking your receipt</h2>
-        <p class="status-line" id="status-line">Uploading…</p>
-        <ol class="steps" id="steps">
-          <li data-step="upload">Receipt uploaded</li>
-          <li data-step="read">Reading the receipt</li>
-          <li data-step="check">Comparing amounts</li>
-          <li data-step="decide">Building the decision</li>
-        </ol>
-        <p class="hint centered">This usually takes under a minute. You can leave this page open.</p>
       </div>
-    </section>
 
-    <!-- ===================== RESULT ===================== -->
-    <section id="view-result" class="view" hidden>
-      <div class="card">
-        <div class="verdict">
-          <span class="badge" id="verdict-badge">—</span>
-          <h2 id="verdict-title">Result</h2>
-        </div>
-
-        <p class="summary" id="summary"></p>
-
-        <dl class="facts" id="facts"></dl>
-
-        <div class="compare" id="compare">
-          <div class="compare-col">
-            <span class="compare-label">You submitted</span>
-            <span class="compare-value" id="submitted-total">—</span>
-          </div>
-          <div class="compare-arrow" id="compare-arrow" aria-hidden="true"></div>
-          <div class="compare-col">
-            <span class="compare-label">We read</span>
-            <span class="compare-value" id="extracted-total">—</span>
-          </div>
-        </div>
-
-        <details class="reasoning" id="reasoning-wrap">
-          <summary>Why this decision</summary>
-          <div class="reasoning-body">
-            <div class="reason-block">
-              <h3>Amount check</h3>
-              <p id="amount-reasoning"></p>
-            </div>
-            <div class="reason-block">
-              <h3>Category</h3>
-              <p id="type-reasoning"></p>
-            </div>
-          </div>
-        </details>
-
-        <div class="actions actions-split">
-          <a class="btn btn-ghost" id="receipt-link" href="#" target="_blank" rel="noopener" hidden>View receipt</a>
-          <button type="button" class="btn btn-primary" id="new-claim">Submit another</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================== FAILURE ===================== -->
-    <section id="view-error" class="view" hidden>
-      <div class="card">
-        <div class="verdict">
-          <span class="badge badge-error">Not completed</span>
-          <h2>We couldn't finish that check</h2>
-        </div>
-        <p class="summary" id="error-summary"></p>
-        <div class="actions actions-split">
-          <button type="button" class="btn btn-ghost" id="back-to-form">Back to form</button>
-          <button type="button" class="btn btn-primary" id="retry">Try again</button>
-        </div>
-      </div>
-    </section>
-
+    </div>
   </main>
 
-  <footer class="foot">
-    <span>Applied AI · Expense Receipt Validation</span>
-  </footer>
-
-  <script src="app.js"></script>
+  <script src="welcome.js"></script>
 </body>
 </html>
