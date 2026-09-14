@@ -995,3 +995,32 @@ body.is-loading .split { visibility: hidden; }
   border-radius: var(--r-sm);
   padding: 8px 10px;
 }
+
+/* ------------------------ period filter + export ---------------------- */
+
+.list-filters-period,
+.list-filters-dates { border-top: 0; padding-top: 0; }
+
+.list-filters-period { padding-bottom: 10px; }
+.list-filters-dates { padding-top: 0; padding-bottom: 12px; gap: 10px; }
+.list-filters-dates .fl { margin-bottom: 4px; }
+.list-filters-dates input[type="date"] { font-size: 13px; padding: 7px 9px; }
+.list-filters-dates .f1 { flex: 1; min-width: 0; }
+
+/* Each filter row after the first drops its own border so the stack reads as
+   one panel rather than three stripes. */
+.split-list .list-filters + .list-filters { border-top: 0; padding-top: 0; }
+
+.count-right { display: flex; align-items: center; gap: 12px; }
+
+.count-export {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.count-export:hover { text-decoration: underline; text-underline-offset: 2px; }
