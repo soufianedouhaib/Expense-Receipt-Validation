@@ -18,6 +18,52 @@
 
   var TITLES = { mine: 'My claims', team: 'My team', all: 'All claims' };
 
+  /* Periods are computed locally, so "this month" is the viewer's month rather
+     than UTC's — which matters at both ends of the day in UTC+4. */
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0); }
+  function endOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999); }
+
+  function periodWindow(key) {
+    var now = new Date();
+    var y = now.getFullYear(), m = now.getMonth();
+
+    switch (key) {
+      case 'this-month':
+        return { from: new Date(y, m, 1).getTime(),
+                 to: endOfDay(new Date(y, m + 1, 0)).getTime() };
+      case 'last-month':
+        return { from: new Date(y, m - 1, 1).getTime(),
+                 to: endOfDay(new Date(y, m, 0)).getTime() };
+      case 'last-3':
+        return { from: new Date(y, m - 2, 1).getTime(), to: endOfDay(now).getTime() };
+      case 'last-30':
+        return { from: startOfDay(new Date(now.getTime() - 29 * 86400000)).getTime(),
+                 to: endOfDay(now).getTime() };
+      case 'ytd':
+        return { from: new Date(y, 0, 1).getTime(), to: endOfDay(now).getTime() };
+      case 'custom': {
+        var f = $('date-from').value, t = $('date-to').value;
+        return {
+          from: f ? startOfDay(new Date(f + 'T12:00:00')).getTime() : null,
+          to: t ? endOfDay(new Date(t + 'T12:00:00')).getTime() : null,
+        };
+      }
+      default:
+        return { from: null, to: null };
+    }
+  }
+
+  function currentWindow() { return periodWindow($('filter-period').value); }
+
+  function withinWindow(row, win) {
+    if (win.from === null && win.to === null) return true;
+    var t = new Date(row.submittedAt).getTime();
+    if (isNaN(t)) return true;
+    if (win.from !== null && t < win.from) return false;
+    if (win.to !== null && t > win.to) return false;
+    return true;
+  }
+
   var EMPTY = {
     mine: 'You have not submitted a claim yet',
     team: 'No claims name you as manager yet',
@@ -109,8 +155,10 @@
   function visibleRows() {
     var q = $('search').value.trim().toLowerCase();
     var status = $('filter-status').value;
+    var win = currentWindow();
 
     return rows.filter(function (row) {
+      if (!withinWindow(row, win)) return false;
       if (status !== 'all' && outcomeOf(row).key !== status) return false;
       if (!q) return true;
       return [row.employeeName, row.employeeEmail, row.receiptType, row.managerName]
@@ -148,8 +196,13 @@
     });
 
     $('list-empty').hidden = list.length > 0;
+    $('list-empty').textContent = rows.length
+      ? 'No claims match these filters.'
+      : (EMPTY[scope] || 'Nothing here yet.');
 
     var attention = rows.filter(function (r) { return outcomeOf(r).key === 'attention'; }).length;
+    updateExport();
+
     $('count-total').textContent = rows.length
       ? (list.length === rows.length
           ? rows.length + ' claims'
@@ -182,8 +235,27 @@
     renderDetail(caseId);
   }
 
+  /* The export carries whatever the list is showing, so the CSV and the screen
+     can never disagree about which period they cover. */
+  function updateExport() {
+    var win = currentWindow();
+    var url = '/api/claims.csv?scope=' + encodeURIComponent(scope);
+    if (win.from !== null) url += '&fromMs=' + win.from;
+    if (win.to !== null) url += '&toMs=' + win.to;
+    $('export-link').href = url;
+  }
+
+  function periodChanged() {
+    var custom = $('filter-period').value === 'custom';
+    $('custom-range').hidden = !custom;
+    renderList();
+  }
+
   $('search').addEventListener('input', renderList);
   $('filter-status').addEventListener('change', renderList);
+  $('filter-period').addEventListener('change', periodChanged);
+  $('date-from').addEventListener('change', renderList);
+  $('date-to').addEventListener('change', renderList);
 
   /* ------------------------------- detail ------------------------------- */
 
@@ -293,10 +365,6 @@
     refresh.type = 'button';
     refresh.addEventListener('click', function () { loadList(); });
     acts.appendChild(refresh);
-
-    var csv = el('a', 'btn btn-ghost btn-sm', 'Export CSV');
-    csv.href = '/api/claims.csv?scope=' + encodeURIComponent(scope);
-    acts.appendChild(csv);
 
     host.appendChild(acts);
   }
