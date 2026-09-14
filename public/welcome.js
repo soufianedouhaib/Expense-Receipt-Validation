@@ -115,36 +115,64 @@
 
   /* ------------------------------ sign in ------------------------------ */
 
+  /* Demo passwords sit in the page on purpose: clicking a row fills both fields
+     so the portal can be handed to someone and tried in one click. It also means
+     anyone who opens this page can sign in as anyone, admin included. That is the
+     trade a demo makes — remove this list before it stops being one. */
   var DEMO = [
-    ['Employee', 'mahmoud@demo.aaico.com'],
-    ['Employee', 'layla@demo.aaico.com'],
-    ['Employee', 'karim@demo.aaico.com'],
-    ['Employee', 'noor@demo.aaico.com'],
-    ['Manager',  'omar@demo.aaico.com'],
-    ['Manager',  'sara@demo.aaico.com'],
-    ['Admin',    'admin@demo.aaico.com'],
+    ['Employee', 'Mahmoud Sharshira', 'mahmoud@demo.aaico.com', 'amber-otter-3755'],
+    ['Employee', 'Layla Haddad',      'layla@demo.aaico.com',   'cedar-falcon-6616'],
+    ['Employee', 'Karim Nasser',      'karim@demo.aaico.com',   'harbor-lantern-7712'],
+    ['Employee', 'Noor Abdallah',     'noor@demo.aaico.com',    'indigo-meadow-1271'],
+    ['Manager',  'Omar Busaileh',     'omar@demo.aaico.com',    'marble-compass-8915'],
+    ['Manager',  'Sara Khalil',       'sara@demo.aaico.com',    'quartz-ember-4983'],
+    ['Admin',    'Portal Admin',      'admin@demo.aaico.com',   'tundra-willow-9236'],
   ];
 
   function renderDemoList() {
     var host = $('demo-list');
     host.innerHTML = '';
-    DEMO.forEach(function (pair) {
+
+    DEMO.forEach(function (entry) {
+      var role = entry[0], name = entry[1], email = entry[2], password = entry[3];
+
       var row = document.createElement('button');
       row.type = 'button';
       row.className = 'demo-row';
-      var role = document.createElement('span');
-      role.className = 'demo-role';
-      role.textContent = pair[0];
-      var mail = document.createElement('span');
-      mail.className = 'demo-email';
-      mail.textContent = pair[1];
-      row.appendChild(role);
-      row.appendChild(mail);
-      // Fills the email in so only the password has to be typed.
+
+      var tag = document.createElement('span');
+      tag.className = 'demo-role';
+      tag.textContent = role;
+
+      var who = document.createElement('span');
+      who.className = 'demo-who';
+      var n = document.createElement('span');
+      n.className = 'demo-name';
+      n.textContent = name;
+      var m = document.createElement('span');
+      m.className = 'demo-email';
+      m.textContent = email;
+      who.appendChild(n);
+      who.appendChild(m);
+
+      var go = document.createElement('span');
+      go.className = 'demo-go';
+      go.textContent = 'Use';
+
+      row.appendChild(tag);
+      row.appendChild(who);
+      row.appendChild(go);
+
       row.addEventListener('click', function () {
-        $('email').value = pair[1];
-        $('password').focus();
+        $('email').value = email;
+        $('password').value = password;
+        $('err-signin').hidden = true;
+        // Straight in — the point of the list is one click, not two.
+        $('signin-form').requestSubmit
+          ? $('signin-form').requestSubmit()
+          : $('signin-btn').click();
       });
+
       host.appendChild(row);
     });
   }
