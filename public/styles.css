@@ -1075,3 +1075,119 @@ body.is-loading .split { visibility: hidden; }
 }
 
 .guest-blurb { font-size: 13px; color: var(--ink-3); }
+
+/* ------------------------------------------------------------------
+   Sample scenarios — demo auto-fill
+
+   A tinted card so nobody mistakes it for part of the claim itself.
+   It sits above the form and writes into it; it is never submitted.
+   ------------------------------------------------------------------ */
+
+.try-card {
+  background: var(--sunken);
+  border-style: dashed;
+  border-color: var(--line-strong);
+  box-shadow: none;
+  padding: 20px 22px;
+}
+
+.try-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.try-eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.try-sub { margin: 8px 0 16px; max-width: 62ch; }
+
+.try-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 10px;
+}
+
+.try-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 15px;
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+
+.try-item:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.try-item:active { transform: translateY(1px); }
+.try-item.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
+
+.try-name {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.try-blurb {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.try-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.try-amount {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.try-expect {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.try-expect.ok   { background: var(--ok-bg);   border-color: var(--ok-line);   color: var(--ok-ink); }
+.try-expect.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+
+.try-status {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.try-status.is-busy { color: var(--ink-4); }
+.try-status.is-error { color: var(--err-ink); }
+
+@media (max-width: 560px) {
+  .try-grid { grid-template-columns: 1fr; }
+}

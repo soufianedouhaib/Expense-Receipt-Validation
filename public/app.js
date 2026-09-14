@@ -161,6 +161,177 @@
     setFile(null);
   });
 
+  /* ------------------------- sample scenarios ------------------------ */
+
+  /* Demo fixtures. Each one is a real PDF under public/samples/ plus the
+     amount a person would type off it. `amount` is deliberately NOT read
+     from the file — the mismatch cases depend on the two disagreeing, which
+     is the whole point of the check the workflow performs. */
+  var SCENARIOS = [
+    {
+      id: 'hotel',
+      name: 'Hotel stay',
+      blurb: 'Two nights in Dubai with breakfast. The total on the receipt is what gets claimed.',
+      file: 'samples/hotel-stay.pdf',
+      amount: '1291.50',
+      currency: 'AED',
+      expect: 'Approved',
+      tone: 'ok',
+    },
+    {
+      id: 'lunch',
+      name: 'Team lunch',
+      blurb: 'A four-cover restaurant bill, claimed exactly as printed.',
+      file: 'samples/team-lunch.pdf',
+      amount: '512.40',
+      currency: 'AED',
+      expect: 'Approved',
+      tone: 'ok',
+    },
+    {
+      id: 'taxi',
+      name: 'Airport taxi, digits swapped',
+      blurb: 'The ride cost 106.05 but 160.50 gets typed in — a transposed pair.',
+      file: 'samples/airport-taxi.pdf',
+      amount: '160.50',
+      currency: 'AED',
+      expect: 'Needs attention',
+      tone: 'warn',
+    },
+    {
+      id: 'supplies',
+      name: 'Office supplies, VAT missed',
+      blurb: 'The subtotal is claimed instead of the total, so 21.15 of VAT goes missing.',
+      file: 'samples/office-supplies.pdf',
+      amount: '423.00',
+      currency: 'AED',
+      expect: 'Needs attention',
+      tone: 'warn',
+    },
+  ];
+
+  var GUEST_SAMPLE = { fullName: 'Mahmoud Sharshira', email: 'mahmoud@demo.aaico.com' };
+
+  function setTryStatus(text, kind) {
+    var el = $('try-status');
+    if (!el) return;
+    if (!text) { el.hidden = true; return; }
+    el.textContent = text;
+    el.className = 'try-status' + (kind ? ' is-' + kind : '');
+    el.hidden = false;
+  }
+
+  function markChosen(id) {
+    Array.prototype.forEach.call(
+      document.querySelectorAll('.try-item'),
+      function (el) { el.classList.toggle('is-chosen', el.dataset.id === id); }
+    );
+  }
+
+  function applyScenario(s, button) {
+    setTryStatus('Fetching the sample receipt…', 'busy');
+    button.disabled = true;
+
+    fetch(s.file)
+      .then(function (r) {
+        if (!r.ok) throw new Error('The sample receipt could not be loaded (' + r.status + ').');
+        return r.blob();
+      })
+      .then(function (blob) {
+        var filename = s.file.split('/').pop();
+        var file;
+        try {
+          file = new File([blob], filename, { type: 'application/pdf' });
+        } catch (e) {
+          // Older Safari has no File constructor; a named Blob is enough for FormData.
+          file = blob;
+          file.name = filename;
+        }
+
+        setFile(file);
+        $('amount').value = s.amount;
+        $('currency').value = s.currency;
+        clearError('amount');
+
+        // Guests have no verified identity, so give them one to submit with —
+        // but never overwrite something they have already typed.
+        if (isGuest) {
+          if (!$('fullName').value.trim()) $('fullName').value = GUEST_SAMPLE.fullName;
+          if (!$('email').value.trim()) $('email').value = GUEST_SAMPLE.email;
+          clearError('fullName');
+          clearError('email');
+        }
+        if (!$('managerName').value.trim()) $('managerName').value = 'Omar Busaileh';
+        if (!$('jobTitle').value.trim()) $('jobTitle').value = 'AI Implementation Engineer';
+
+        markChosen(s.id);
+        setTryStatus(
+          'Filled in: ' + s.name + ' — ' + s.amount + ' ' + s.currency +
+          '. Expected outcome: ' + s.expect + '. Submit when you are ready.'
+        );
+      })
+      .catch(function (err) {
+        setTryStatus(err.message, 'error');
+      })
+      .then(function () { button.disabled = false; });
+  }
+
+  function renderScenarios() {
+    var grid = $('try-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    SCENARIOS.forEach(function (s) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'try-item';
+      item.dataset.id = s.id;
+
+      var name = document.createElement('span');
+      name.className = 'try-name';
+      name.textContent = s.name;
+
+      var blurb = document.createElement('span');
+      blurb.className = 'try-blurb';
+      blurb.textContent = s.blurb;
+
+      var foot = document.createElement('span');
+      foot.className = 'try-foot';
+
+      var amount = document.createElement('span');
+      amount.className = 'try-amount';
+      amount.textContent = s.amount + ' ' + s.currency;
+
+      var expect = document.createElement('span');
+      expect.className = 'try-expect ' + s.tone;
+      expect.textContent = 'Expected: ' + s.expect;
+
+      foot.appendChild(amount);
+      foot.appendChild(expect);
+
+      item.appendChild(name);
+      item.appendChild(blurb);
+      item.appendChild(foot);
+
+      item.addEventListener('click', function () { applyScenario(s, item); });
+
+      grid.appendChild(item);
+    });
+  }
+
+  function clearForm() {
+    releaseReceiptUrl();
+    setFile(null);
+    $('amount').value = '';
+    $('currency').value = 'AED';
+    ['receipt', 'amount', 'fullName', 'email'].forEach(clearError);
+    $('form-error').hidden = true;
+    markChosen(null);
+    setTryStatus('Form cleared.');
+  }
+
+  if ($('try-clear')) $('try-clear').addEventListener('click', clearForm);
+
   /* ---------------------------- validation --------------------------- */
 
   function showError(field, message) {
@@ -412,6 +583,8 @@
     releaseReceiptUrl();
     setFile(null);
     $('amount').value = '';
+    markChosen(null);
+    setTryStatus(null);
     show('form');
   });
 
@@ -468,6 +641,7 @@
       }
 
       document.body.classList.remove('is-loading');
+      renderScenarios();
       loadProfile();
 
       // Demo accounts come with a manager already assigned; only fill it in if
