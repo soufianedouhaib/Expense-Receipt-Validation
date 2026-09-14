@@ -10,7 +10,7 @@
   var STORE_KEY = 'aaico.expense.profile';
 
   var PROFILE_FIELDS = [
-    'jobTitle', 'managerName', 'managerEmail',
+    'jobTitle', 'managerName',
     'phoneNumber', 'dateOfBirth', 'gender',
   ];
 
@@ -245,7 +245,7 @@
 
     var fd = new FormData();
     fd.append('receipt', fileInput.files[0]);
-    ['amount', 'currency', 'jobTitle', 'managerName', 'managerEmail',
+    ['amount', 'currency', 'jobTitle', 'managerName',
      'phoneNumber', 'dateOfBirth', 'gender'].forEach(function (f) {
       fd.append(f, $(f).value);
     });
@@ -377,14 +377,6 @@
     $('amount-reasoning').textContent = report.amount_match_reasoning || '—';
     $('type-reasoning').textContent = report.receipt_type_reasoning || '—';
 
-    var link = $('receipt-link');
-    if (receiptObjectUrl) {
-      link.href = receiptObjectUrl;
-      link.hidden = false;
-    } else {
-      link.hidden = true;
-    }
-
     show('result');
   }
 
@@ -442,6 +434,11 @@
       $('id-email').textContent = me.email || '—';
       document.body.classList.remove('is-loading');
       loadProfile();
+      // Demo accounts come with a manager already assigned; only fill it in if
+      // the person has not typed or saved one of their own.
+      if (me.defaultManager && !$('managerName').value) {
+        $('managerName').value = me.defaultManager;
+      }
     })
     .catch(function () {
       window.location.href = '/';

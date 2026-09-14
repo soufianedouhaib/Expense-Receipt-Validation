@@ -1,5 +1,6 @@
-/* Admin view — split list and detail.
-   Talks only to this app's own /api/manager/* routes.
+/* Claims workspace — split list and detail.
+   One page serves three scopes, chosen by ?scope= and re-checked server-side:
+   mine (your own), team (claims naming you as manager), all (admin).
 
    The access code lives in sessionStorage, so it dies with the tab. It is also
    cleared deliberately on log out and on leaving for the Submit page, so the
@@ -11,9 +12,17 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var me = null;          // { name, email, roles }
-  var scope = 'team';     // 'all' for admins, 'team' for managers
+  var scope = new URLSearchParams(window.location.search).get('scope') || 'mine';
   var rows = [];
   var selectedId = null;
+
+  var TITLES = { mine: 'My claims', team: 'My team', all: 'All claims' };
+
+  var EMPTY = {
+    mine: 'You have not submitted a claim yet',
+    team: 'No claims name you as manager yet',
+    all: 'No claims yet',
+  };
 
   /* ------------------------------ plumbing ------------------------------ */
 
@@ -121,9 +130,14 @@
       btn.dataset.caseId = row.caseId;
 
       var main = el('div', 'list-row-main');
-      main.appendChild(el('div', 'list-row-name', row.employeeName || row.employeeEmail || 'Unnamed'));
+      main.appendChild(el('div', 'list-row-name',
+        scope === 'mine'
+          ? (row.receiptType || 'Uncategorised')
+          : (row.employeeName || row.employeeEmail || 'Unnamed')));
       main.appendChild(el('div', 'list-row-meta',
-        fmtDate(row.submittedAt) + ' · ' + (row.receiptType || 'Uncategorised')));
+        scope === 'mine'
+          ? fmtDate(row.submittedAt)
+          : fmtDate(row.submittedAt) + ' · ' + (row.receiptType || 'Uncategorised')));
       btn.appendChild(main);
 
       btn.appendChild(el('span', 'list-row-amt', row.submittedTotal || '—'));
@@ -136,12 +150,11 @@
     $('list-empty').hidden = list.length > 0;
 
     var attention = rows.filter(function (r) { return outcomeOf(r).key === 'attention'; }).length;
-    var noun = scope === 'all' ? ' claims' : ' team claims';
     $('count-total').textContent = rows.length
       ? (list.length === rows.length
-          ? rows.length + noun
-          : list.length + ' of ' + rows.length + noun)
-      : (scope === 'all' ? 'No claims yet' : 'No claims name you as manager yet');
+          ? rows.length + ' claims'
+          : list.length + ' of ' + rows.length + ' claims')
+      : (EMPTY[scope] || 'Nothing here yet');
     $('count-attention').textContent = attention ? attention + ' need attention' : '';
   }
 
@@ -149,11 +162,11 @@
     if (!me) return Promise.resolve();
     if (!quiet) pageError('');
 
-    return api('/api/manager/submissions')
+    return api('/api/claims?scope=' + encodeURIComponent(scope))
       .then(function (data) {
         rows = data.submissions || [];
-        scope = data.scope || 'team';
-        $('mode-title').textContent = scope === 'all' ? 'All claims' : 'My team';
+        scope = data.scope || scope;
+        $('mode-title').textContent = TITLES[scope] || 'Claims';
         if (!selectedId && rows.length) selectedId = rows[0].caseId;
         renderList();
         if (selectedId) renderDetail(selectedId);
@@ -195,7 +208,10 @@
 
     var head = el('div', 'detail-head');
     head.appendChild(el('span', 'badge ' + o.cls, o.label));
-    head.appendChild(el('h2', '', row.employeeName || 'Submission'));
+    head.appendChild(el('h2', '',
+      scope === 'mine'
+        ? (row.receiptType || 'Expense claim')
+        : (row.employeeName || 'Submission')));
     head.appendChild(el('div', 'sub', row.summary || row.error ||
       (row.state === 'running' ? 'This claim is still being checked.' : '')));
     host.appendChild(head);
@@ -240,7 +256,7 @@
 
     /* reasoning */
     if (row.summary || row.state === 'done') {
-      api('/api/manager/submissions/' + encodeURIComponent(caseId))
+      api('/api/claims/' + encodeURIComponent(caseId))
         .then(function (data) {
           if (selectedId !== caseId) return;   // selection moved on while loading
           var report = data.report || {};
@@ -268,7 +284,7 @@
     var acts = el('div', 'detail-acts');
     if (row.hasReceipt) {
       var open = el('a', 'btn btn-primary btn-sm', 'Open receipt');
-      open.href = '/api/manager/receipt/' + encodeURIComponent(caseId);
+      open.href = '/api/claims/' + encodeURIComponent(caseId) + '/receipt';
       open.target = '_blank';
       open.rel = 'noopener';
       acts.appendChild(open);
@@ -278,12 +294,9 @@
     refresh.addEventListener('click', function () { loadList(); });
     acts.appendChild(refresh);
 
-    // Export is an admin action; the route refuses it for anyone else.
-    if (me && me.roles.indexOf('admin') !== -1) {
-      var csv = el('a', 'btn btn-ghost btn-sm', 'Export CSV');
-      csv.href = '/api/manager/export.csv';
-      acts.appendChild(csv);
-    }
+    var csv = el('a', 'btn btn-ghost btn-sm', 'Export CSV');
+    csv.href = '/api/claims.csv?scope=' + encodeURIComponent(scope);
+    acts.appendChild(csv);
 
     host.appendChild(acts);
   }
@@ -295,14 +308,17 @@
     .then(function (session) {
       if (!session.signedIn) { window.location.href = '/'; return; }
 
-      var canReview = session.roles.indexOf('manager') !== -1 ||
-                      session.roles.indexOf('admin') !== -1;
-      if (!canReview) { window.location.href = '/'; return; }
+      // Everyone may look at their own claims; the other scopes need the role,
+      // and the server re-checks regardless of what the URL asks for.
+      if (scope === 'team' && session.roles.indexOf('manager') === -1) scope = 'mine';
+      if (scope === 'all' && session.roles.indexOf('admin') === -1) scope = 'mine';
 
       me = session;
       $('who').textContent = session.name || session.email;
       // Only offer "Switch role" to people who actually hold more than one.
-      $('switch-btn').hidden = session.roles.length < 2;
+      $('mode-title').textContent = TITLES[scope] || 'Claims';
+      if (scope === 'mine') $('search').placeholder = 'Search category or manager';
+      $('switch-btn').hidden = false;
       document.body.classList.remove('is-loading');
       loadList();
     })
