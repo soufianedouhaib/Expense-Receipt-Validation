@@ -69,9 +69,17 @@ function missingEnv() {
  * Storage — Redis for records, Vercel Blob for receipt copies.
  * ------------------------------------------------------------------ */
 
-const INDEX_KEY = 'expense:index';           // sorted set, score = submittedAt ms
+const INDEX_KEY = 'expense:index';                     // every claim, by time
+const BY_EMPLOYEE = (email) => `expense:emp:${email}`; // one person's own claims
+const BY_MANAGER = (name) => `expense:mgr:${name}`;    // the claims naming them
+const MANAGERS_SET = 'expense:managers';               // who has ever been named
 const RECORD_KEY = (id) => `expense:case:${id}`;
 const RECORD_TTL_SECONDS = 60 * 60 * 24 * 365; // keep a year of history
+
+/** Fold a person's name so small differences in spacing or case still match. */
+function normaliseName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
 
 /**
  * Find an environment variable by suffix, so a prefix chosen when the store was
@@ -150,6 +158,19 @@ async function redisZAdd(key, score, member) {
   return client.sendCommand(['ZADD', key, String(score), member]);
 }
 
+async function redisSAdd(key, member) {
+  if (STORAGE_MODE === 'rest') return getRestClient().sadd(key, member);
+  const client = await getTcpClient();
+  return client.sendCommand(['SADD', key, member]);
+}
+
+async function redisSIsMember(key, member) {
+  if (STORAGE_MODE === 'rest') return getRestClient().sismember(key, member);
+  const client = await getTcpClient();
+  const n = await client.sendCommand(['SISMEMBER', key, member]);
+  return Number(n) === 1;
+}
+
 async function redisZRangeRev(key, limit) {
   if (STORAGE_MODE === 'rest') {
     return getRestClient().zrange(key, 0, limit - 1, { rev: true });
@@ -161,8 +182,27 @@ async function redisZRangeRev(key, limit) {
 async function saveRecord(record) {
   if (!storageReady()) return;
   try {
+    const when = new Date(record.submittedAt).getTime();
+    const emp = record.employee || {};
+
     await redisSet(RECORD_KEY(record.caseId), record);
-    await redisZAdd(INDEX_KEY, new Date(record.submittedAt).getTime(), record.caseId);
+    await redisZAdd(INDEX_KEY, when, record.caseId);
+
+    // Two more indexes, so "my claims" and "my team's claims" are direct reads
+    // rather than a scan of everything.
+    if (emp.email) {
+      await redisZAdd(BY_EMPLOYEE(String(emp.email).toLowerCase()), when, record.caseId);
+    }
+    if (emp.managerName) {
+      // Naming someone as your manager is what makes them one. The key is the
+      // name folded to lowercase with runs of spaces collapsed, so "Omar  Busaileh"
+      // and "omar busaileh" land in the same place.
+      const mgr = normaliseName(emp.managerName);
+      if (mgr) {
+        await redisZAdd(BY_MANAGER(mgr), when, record.caseId);
+        await redisSAdd(MANAGERS_SET, mgr);
+      }
+    }
   } catch (err) {
     // History is secondary — never fail an employee's submission over it.
     console.error('[storage] save failed', err.message);
@@ -182,10 +222,20 @@ async function loadRecord(caseId) {
   }
 }
 
-async function listRecords(limit = 300) {
+async function isManager(name) {
+  if (!storageReady() || !name) return false;
+  try {
+    return await redisSIsMember(MANAGERS_SET, normaliseName(name));
+  } catch (err) {
+    console.error('[storage] manager check failed', err.message);
+    return false;
+  }
+}
+
+async function listRecords(limit = 300, key = INDEX_KEY) {
   if (!storageReady()) return [];
   try {
-    const ids = await redisZRangeRev(INDEX_KEY, limit);
+    const ids = await redisZRangeRev(key, limit);
     if (!ids || !ids.length) return [];
     const records = await Promise.all(ids.map((id) => loadRecord(id)));
     return records.filter(Boolean);
@@ -379,13 +429,8 @@ async function applyOutcome(caseId, outcome) {
  * ------------------------------------------------------------------ */
 
 const requireSignedIn = auth.require([]);
-const requireReviewer = auth.require(['manager', 'admin']);
 
 const isAdmin = (session) => session.roles.indexOf('admin') !== -1;
-
-function normaliseName(value) {
-  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
 
 /**
  * An admin sees everything. A manager sees the claims that name them — by the
@@ -393,18 +438,15 @@ function normaliseName(value) {
  * convenience, not a boundary: two people called the same thing would see each
  * other's team, which is why the email field exists.
  */
-function visibleTo(session, records) {
-  if (isAdmin(session)) return records;
+function managesClaim(session, record) {
+  const emp = record.employee || {};
+  return Boolean(emp.managerName) &&
+         normaliseName(emp.managerName) === normaliseName(session.name);
+}
 
-  const email = String(session.email || '').toLowerCase();
-  const name = normaliseName(session.name);
-
-  return records.filter((r) => {
-    const emp = r.employee || {};
-    if (emp.managerEmail && String(emp.managerEmail).toLowerCase() === email) return true;
-    if (emp.managerName && normaliseName(emp.managerName) === name) return true;
-    return false;
-  });
+function ownsClaim(session, record) {
+  const emp = record.employee || {};
+  return String(emp.email || '').toLowerCase() === String(session.email || '').toLowerCase();
 }
 
 /* ------------------------------------------------------------------ *
@@ -415,8 +457,7 @@ function visibleTo(session, records) {
  * Sign-in
  * ------------------------------------------------------------------ */
 
-app.get('/api/auth/google', auth.beginLogin);
-app.get('/api/auth/callback', auth.completeLogin);
+app.post('/api/auth/login', auth.login);
 
 app.post('/api/auth/logout', (req, res) => {
   auth.endSession(res);
@@ -424,21 +465,26 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 /** Who is signed in, and what may they do. The welcome page asks this first. */
-app.get('/api/me', (req, res) => {
-  if (!auth.ready()) {
-    return res.json({ signedIn: false, configured: false, domain: auth.config.domain });
-  }
+app.get('/api/me', async (req, res) => {
   const session = auth.sessionFrom(req);
-  if (!session) return res.json({ signedIn: false, configured: true, domain: auth.config.domain });
+  if (!session) return res.json({ signedIn: false, configured: true });
+
+  // "Manager" is configured nowhere. You become one the moment somebody names
+  // you on a claim, so it is looked up fresh rather than stored in the cookie.
+  const roles = session.roles.slice();
+  try {
+    if (await isManager(session.name)) roles.push('manager');
+  } catch (e) { /* not being shown the team view is better than a broken page */ }
 
   res.json({
     signedIn: true,
     configured: true,
-    domain: auth.config.domain,
     email: session.email,
     name: session.name,
-    picture: session.picture,
-    roles: session.roles,
+    roles,
+    // Prefills the Manager field for demo employees so the first claim wires
+    // itself to the right person without anyone having to remember a name.
+    defaultManager: auth.defaultManagerFor(session.email),
   });
 });
 
@@ -450,10 +496,9 @@ app.get('/api/health', (req, res) => {
     history: storageReady(),
     storage: STORAGE_MODE,
     receiptArchive: Boolean(BLOB_TOKEN),
-    signIn: auth.ready(),
-    domain: auth.config.domain,
-    admins: auth.config.admins,
-    managers: auth.config.managers,
+    signIn: true,
+    demoAccounts: auth.config.accounts,
+    sessionSecretIsDefault: auth.config.secretIsDefault,
   };
 
   // Diagnostics, behind the manager code: which variables were matched, and what
@@ -535,7 +580,6 @@ app.post('/api/submit', requireSignedIn, upload.single('receipt'), async (req, r
         email: (email || '').trim(),
         jobTitle: (req.body.jobTitle || '').trim(),
         managerName: (req.body.managerName || '').trim(),
-        managerEmail: (req.body.managerEmail || '').trim().toLowerCase(),
         phoneNumber: (req.body.phoneNumber || '').trim(),
       },
       amount: String(amount).trim(),
@@ -595,7 +639,7 @@ app.get('/api/status/:caseId', requireSignedIn, async (req, res) => {
 /**
  * A submission's outcome is normally written by the employee's own browser as it
  * polls. If they close the tab mid-run the record would sit at "running" forever,
- * so anything still running is re-checked against Opus when the manager looks.
+ * so anything still running is re-checked against Opus when someone looks.
  */
 async function refreshStale(records) {
   const stale = records.filter((r) => r.state === 'running');
@@ -617,14 +661,15 @@ async function refreshStale(records) {
 
 function toRow(record) {
   const report = record.report || {};
+  const emp = record.employee || {};
   return {
     caseId: record.caseId,
     submittedAt: record.submittedAt,
     completedAt: record.completedAt,
-    employeeName: record.employee ? record.employee.fullName : '',
-    employeeEmail: record.employee ? record.employee.email : '',
-    jobTitle: record.employee ? record.employee.jobTitle : '',
-    managerName: record.employee ? record.employee.managerName : '',
+    employeeName: emp.fullName || '',
+    employeeEmail: emp.email || '',
+    jobTitle: emp.jobTitle || '',
+    managerName: emp.managerName || '',
     submittedTotal: record.submittedTotal,
     extractedTotal: report.extracted_total
       ? `${report.extracted_total.amount || ''} ${report.extracted_total.currency || ''}`.trim()
@@ -642,33 +687,69 @@ function toRow(record) {
   };
 }
 
-app.get('/api/manager/submissions', requireReviewer, async (req, res) => {
+/* ------------------------------------------------------------------ *
+ * Claims — one endpoint, three scopes
+ *
+ *   mine   the claims you filed        anyone signed in
+ *   team   the claims naming you       anyone somebody named as their manager
+ *   all    every claim                 ADMIN_EMAILS only
+ * ------------------------------------------------------------------ */
+
+async function resolveScope(req) {
+  const wanted = String(req.query.scope || 'mine').toLowerCase();
+  const session = req.session;
+
+  if (wanted === 'all') {
+    if (!isAdmin(session)) return { error: 'That view is for administrators.' };
+    return { scope: 'all', key: INDEX_KEY };
+  }
+
+  if (wanted === 'team') {
+    if (!(await isManager(session.name))) {
+      return { error: 'No claims name you as manager yet.' };
+    }
+    return { scope: 'team', key: BY_MANAGER(normaliseName(session.name)) };
+  }
+
+  return { scope: 'mine', key: BY_EMPLOYEE(String(session.email).toLowerCase()) };
+}
+
+/** Your own claim, one naming you as manager, or anything at all if admin. */
+function maySee(session, record) {
+  return isAdmin(session) || ownsClaim(session, record) || managesClaim(session, record);
+}
+
+app.get('/api/claims', requireSignedIn, async (req, res) => {
   if (!storageReady()) {
     return res.status(503).json({
-      error: 'History storage is not configured. No REDIS_URL or REST credentials were found in the environment.',
+      error: 'History storage is not configured, so there is nothing to show yet.',
     });
   }
   try {
-    let records = await listRecords();
-    records = visibleTo(req.session, records);
+    const resolved = await resolveScope(req);
+    if (resolved.error) return res.status(403).json({ error: resolved.error });
+
+    let records = await listRecords(300, resolved.key);
     records = await refreshStale(records);
+
     res.json({
+      scope: resolved.scope,
+      viewer: { name: req.session.name, email: req.session.email },
       submissions: records.map(toRow),
-      scope: isAdmin(req.session) ? 'all' : 'team',
-      viewer: { name: req.session.name, email: req.session.email, roles: req.session.roles },
     });
   } catch (err) {
-    console.error('[manager/list]', err);
-    res.status(500).json({ error: err.message || 'Could not load submissions.' });
+    console.error('[claims]', err);
+    res.status(500).json({ error: err.message || 'Could not load claims.' });
   }
 });
 
-app.get('/api/manager/submissions/:caseId', requireReviewer, async (req, res) => {
+app.get('/api/claims/:caseId', requireSignedIn, async (req, res) => {
   try {
     let record = await loadRecord(req.params.caseId);
-    if (!record) return res.status(404).json({ error: 'No submission with that id.' });
-    if (!visibleTo(req.session, [record]).length) {
-      return res.status(404).json({ error: 'No submission with that id.' });
+    // A claim you cannot see is reported as missing rather than forbidden, so
+    // the response never confirms that someone else's claim exists.
+    if (!record || !maySee(req.session, record)) {
+      return res.status(404).json({ error: 'No claim with that id.' });
     }
 
     if (record.state === 'running') {
@@ -688,40 +769,40 @@ app.get('/api/manager/submissions/:caseId', requireReviewer, async (req, res) =>
         : null,
     });
   } catch (err) {
-    console.error('[manager/detail]', err);
-    res.status(500).json({ error: err.message || 'Could not load that submission.' });
+    console.error('[claim]', err);
+    res.status(500).json({ error: err.message || 'Could not load that claim.' });
   }
 });
 
 /** Streams the archived receipt. The blob URL itself never reaches the browser. */
-app.get('/api/manager/receipt/:caseId', requireReviewer, async (req, res) => {
+app.get('/api/claims/:caseId/receipt', requireSignedIn, async (req, res) => {
   try {
     const record = await loadRecord(req.params.caseId);
-    if (record && !visibleTo(req.session, [record]).length) {
-      return res.status(404).json({ error: 'No stored receipt for that submission.' });
-    }
-    if (!record || !record.receipt || !record.receipt.blobUrl) {
-      return res.status(404).json({ error: 'No stored receipt for that submission.' });
+    if (!record || !maySee(req.session, record) || !record.receipt || !record.receipt.blobUrl) {
+      return res.status(404).json({ error: 'No stored receipt for that claim.' });
     }
     const upstream = await fetch(record.receipt.blobUrl);
     if (!upstream.ok) return res.status(502).json({ error: 'The stored receipt could not be read.' });
 
     const buf = Buffer.from(await upstream.arrayBuffer());
     res.setHeader('Content-Type', record.receipt.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${record.receipt.filename.replace(/"/g, '')}"`);
+    res.setHeader('Content-Disposition',
+      'inline; filename="' + String(record.receipt.filename).replace(/"/g, '') + '"');
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buf);
   } catch (err) {
-    console.error('[manager/receipt]', err);
+    console.error('[receipt]', err);
     res.status(500).json({ error: 'Could not fetch that receipt.' });
   }
 });
 
-app.get('/api/manager/export.csv', auth.require(['admin']), async (req, res) => {
+app.get('/api/claims.csv', requireSignedIn, async (req, res) => {
   if (!storageReady()) return res.status(503).send('History storage is not configured.');
   try {
-    const records = visibleTo(req.session, await listRecords());
-    const rows = records.map(toRow);
+    const resolved = await resolveScope(req);
+    if (resolved.error) return res.status(403).send(resolved.error);
+
+    const rows = (await listRecords(1000, resolved.key)).map(toRow);
 
     const columns = [
       ['Submitted at', 'submittedAt'], ['Employee', 'employeeName'], ['Email', 'employeeEmail'],
@@ -735,7 +816,7 @@ app.get('/api/manager/export.csv', auth.require(['admin']), async (req, res) => 
     const esc = (v) => {
       if (v === null || v === undefined) return '';
       const s = String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
 
     const csv = [columns.map(([label]) => esc(label)).join(',')]
@@ -744,10 +825,11 @@ app.get('/api/manager/export.csv', auth.require(['admin']), async (req, res) => 
 
     const stamp = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="expense-submissions-${stamp}.csv"`);
+    res.setHeader('Content-Disposition',
+      'attachment; filename="claims-' + resolved.scope + '-' + stamp + '.csv"');
     res.send('﻿' + csv); // BOM so Excel reads UTF-8 correctly
   } catch (err) {
-    console.error('[manager/export]', err);
+    console.error('[csv]', err);
     res.status(500).send('Could not build the export.');
   }
 });
@@ -775,7 +857,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     const missing = missingEnv();
     console.log(`Expense Receipt Validation running on http://localhost:${PORT}`);
-    console.log(`  history: ${storageReady() ? 'on' : 'off'} · receipts: ${BLOB_TOKEN ? 'on' : 'off'} · sign-in: ${auth.ready() ? auth.config.domain || 'any domain' : 'not configured'}`);
+    console.log(`  history: ${storageReady() ? 'on' : 'off'} · receipts: ${BLOB_TOKEN ? 'on' : 'off'} · demo accounts: ${auth.config.accounts}`);
     if (missing.length) console.warn(`  warning — missing env vars: ${missing.join(', ')}`);
   });
 }
