@@ -28,6 +28,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
+const auth = require('./lib/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,7 +51,6 @@ const OUTPUT_SUMMARY_REPORT = process.env.OPUS_OUTPUT_SUMMARY_REPORT;
 const OUTPUT_RECEIPT = process.env.OPUS_OUTPUT_RECEIPT;
 const OUTPUT_EMPLOYEE_RECORD = process.env.OPUS_OUTPUT_EMPLOYEE_RECORD;
 
-const MANAGER_ACCESS_CODE = process.env.MANAGER_ACCESS_CODE;
 
 const REQUIRED_ENV = {
   OPUS_SERVICE_KEY,
@@ -375,33 +375,72 @@ async function applyOutcome(caseId, outcome) {
 }
 
 /* ------------------------------------------------------------------ *
- * Manager access
+ * Access — who is signed in, and what they may see
  * ------------------------------------------------------------------ */
 
-function codeMatches(supplied) {
-  if (!MANAGER_ACCESS_CODE) return false;
-  const a = Buffer.from(String(supplied || ''));
-  const b = Buffer.from(MANAGER_ACCESS_CODE);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+const requireSignedIn = auth.require([]);
+const requireReviewer = auth.require(['manager', 'admin']);
+
+const isAdmin = (session) => session.roles.indexOf('admin') !== -1;
+
+function normaliseName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function requireManager(req, res, next) {
-  if (!MANAGER_ACCESS_CODE) {
-    return res.status(503).json({
-      error: 'Manager access is not configured. Set MANAGER_ACCESS_CODE in the environment.',
-    });
-  }
-  const supplied = req.get('x-access-code') || req.query.code;
-  if (!codeMatches(supplied)) {
-    return res.status(401).json({ error: 'That access code is not right.' });
-  }
-  next();
+/**
+ * An admin sees everything. A manager sees the claims that name them — by the
+ * manager email the employee gave, or failing that by name. Name matching is a
+ * convenience, not a boundary: two people called the same thing would see each
+ * other's team, which is why the email field exists.
+ */
+function visibleTo(session, records) {
+  if (isAdmin(session)) return records;
+
+  const email = String(session.email || '').toLowerCase();
+  const name = normaliseName(session.name);
+
+  return records.filter((r) => {
+    const emp = r.employee || {};
+    if (emp.managerEmail && String(emp.managerEmail).toLowerCase() === email) return true;
+    if (emp.managerName && normaliseName(emp.managerName) === name) return true;
+    return false;
+  });
 }
 
 /* ------------------------------------------------------------------ *
  * Employee routes
  * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * Sign-in
+ * ------------------------------------------------------------------ */
+
+app.get('/api/auth/google', auth.beginLogin);
+app.get('/api/auth/callback', auth.completeLogin);
+
+app.post('/api/auth/logout', (req, res) => {
+  auth.endSession(res);
+  res.json({ ok: true });
+});
+
+/** Who is signed in, and what may they do. The welcome page asks this first. */
+app.get('/api/me', (req, res) => {
+  if (!auth.ready()) {
+    return res.json({ signedIn: false, configured: false, domain: auth.config.domain });
+  }
+  const session = auth.sessionFrom(req);
+  if (!session) return res.json({ signedIn: false, configured: true, domain: auth.config.domain });
+
+  res.json({
+    signedIn: true,
+    configured: true,
+    domain: auth.config.domain,
+    email: session.email,
+    name: session.name,
+    picture: session.picture,
+    roles: session.roles,
+  });
+});
 
 app.get('/api/health', (req, res) => {
   const missing = missingEnv();
@@ -411,12 +450,16 @@ app.get('/api/health', (req, res) => {
     history: storageReady(),
     storage: STORAGE_MODE,
     receiptArchive: Boolean(BLOB_TOKEN),
-    managerAccess: Boolean(MANAGER_ACCESS_CODE),
+    signIn: auth.ready(),
+    domain: auth.config.domain,
+    admins: auth.config.admins,
+    managers: auth.config.managers,
   };
 
   // Diagnostics, behind the manager code: which variables were matched, and what
   // storage-ish names exist in the environment. Names only — never any values.
-  if (MANAGER_ACCESS_CODE && codeMatches(req.query.code)) {
+  const who = auth.sessionFrom(req);
+  if (who && who.roles.indexOf('admin') !== -1) {
     body.matched = {
       restUrl: restUrlVar.name,
       restToken: restTokenVar.name,
@@ -431,7 +474,7 @@ app.get('/api/health', (req, res) => {
   res.json(body);
 });
 
-app.post('/api/submit', upload.single('receipt'), async (req, res) => {
+app.post('/api/submit', requireSignedIn, upload.single('receipt'), async (req, res) => {
   try {
     const missing = missingEnv();
     if (missing.length) {
@@ -441,12 +484,17 @@ app.post('/api/submit', upload.single('receipt'), async (req, res) => {
       return res.status(400).json({ error: 'A receipt file is required.' });
     }
 
-    const { fullName, email, amount, currency } = req.body;
-    if (!fullName || !email || !amount || !currency) {
-      return res.status(400).json({ error: 'Name, work email, amount and currency are all required.' });
+    const { amount, currency } = req.body;
+    if (!amount || !currency) {
+      return res.status(400).json({ error: 'An amount and a currency are required.' });
     }
 
-    const employeeRecord = buildEmployeeRecord(req.body);
+    // Identity comes from the signed-in session, never from the form, so a
+    // claim can only ever be filed in the name of the person submitting it.
+    const fullName = req.session.name;
+    const email = req.session.email;
+
+    const employeeRecord = buildEmployeeRecord(Object.assign({}, req.body, { fullName, email }));
     const submittedTotal = `${String(amount).trim()} ${String(currency).trim().toUpperCase()}`;
 
     const fileUrl = await uploadReceiptToOpus(req.file);
@@ -487,6 +535,7 @@ app.post('/api/submit', upload.single('receipt'), async (req, res) => {
         email: (email || '').trim(),
         jobTitle: (req.body.jobTitle || '').trim(),
         managerName: (req.body.managerName || '').trim(),
+        managerEmail: (req.body.managerEmail || '').trim().toLowerCase(),
         phoneNumber: (req.body.phoneNumber || '').trim(),
       },
       amount: String(amount).trim(),
@@ -513,7 +562,7 @@ app.post('/api/submit', upload.single('receipt'), async (req, res) => {
   }
 });
 
-app.get('/api/status/:caseId', async (req, res) => {
+app.get('/api/status/:caseId', requireSignedIn, async (req, res) => {
   try {
     const { caseId } = req.params;
     const outcome = await refreshCase(caseId);
@@ -542,16 +591,6 @@ app.get('/api/status/:caseId', async (req, res) => {
 /* ------------------------------------------------------------------ *
  * Manager routes
  * ------------------------------------------------------------------ */
-
-app.post('/api/manager/verify', (req, res) => {
-  if (!MANAGER_ACCESS_CODE) {
-    return res.status(503).json({ error: 'Manager access is not configured on this deployment.' });
-  }
-  if (!codeMatches(req.body && req.body.code)) {
-    return res.status(401).json({ error: 'That access code is not right.' });
-  }
-  res.json({ ok: true });
-});
 
 /**
  * A submission's outcome is normally written by the employee's own browser as it
@@ -603,7 +642,7 @@ function toRow(record) {
   };
 }
 
-app.get('/api/manager/submissions', requireManager, async (req, res) => {
+app.get('/api/manager/submissions', requireReviewer, async (req, res) => {
   if (!storageReady()) {
     return res.status(503).json({
       error: 'History storage is not configured. No REDIS_URL or REST credentials were found in the environment.',
@@ -611,18 +650,26 @@ app.get('/api/manager/submissions', requireManager, async (req, res) => {
   }
   try {
     let records = await listRecords();
+    records = visibleTo(req.session, records);
     records = await refreshStale(records);
-    res.json({ submissions: records.map(toRow) });
+    res.json({
+      submissions: records.map(toRow),
+      scope: isAdmin(req.session) ? 'all' : 'team',
+      viewer: { name: req.session.name, email: req.session.email, roles: req.session.roles },
+    });
   } catch (err) {
     console.error('[manager/list]', err);
     res.status(500).json({ error: err.message || 'Could not load submissions.' });
   }
 });
 
-app.get('/api/manager/submissions/:caseId', requireManager, async (req, res) => {
+app.get('/api/manager/submissions/:caseId', requireReviewer, async (req, res) => {
   try {
     let record = await loadRecord(req.params.caseId);
     if (!record) return res.status(404).json({ error: 'No submission with that id.' });
+    if (!visibleTo(req.session, [record]).length) {
+      return res.status(404).json({ error: 'No submission with that id.' });
+    }
 
     if (record.state === 'running') {
       try {
@@ -647,9 +694,12 @@ app.get('/api/manager/submissions/:caseId', requireManager, async (req, res) => 
 });
 
 /** Streams the archived receipt. The blob URL itself never reaches the browser. */
-app.get('/api/manager/receipt/:caseId', requireManager, async (req, res) => {
+app.get('/api/manager/receipt/:caseId', requireReviewer, async (req, res) => {
   try {
     const record = await loadRecord(req.params.caseId);
+    if (record && !visibleTo(req.session, [record]).length) {
+      return res.status(404).json({ error: 'No stored receipt for that submission.' });
+    }
     if (!record || !record.receipt || !record.receipt.blobUrl) {
       return res.status(404).json({ error: 'No stored receipt for that submission.' });
     }
@@ -667,10 +717,10 @@ app.get('/api/manager/receipt/:caseId', requireManager, async (req, res) => {
   }
 });
 
-app.get('/api/manager/export.csv', requireManager, async (req, res) => {
+app.get('/api/manager/export.csv', auth.require(['admin']), async (req, res) => {
   if (!storageReady()) return res.status(503).send('History storage is not configured.');
   try {
-    const records = await listRecords();
+    const records = visibleTo(req.session, await listRecords());
     const rows = records.map(toRow);
 
     const columns = [
@@ -725,7 +775,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     const missing = missingEnv();
     console.log(`Expense Receipt Validation running on http://localhost:${PORT}`);
-    console.log(`  history: ${storageReady() ? 'on' : 'off'} · receipt archive: ${BLOB_TOKEN ? 'on' : 'off'} · manager code: ${MANAGER_ACCESS_CODE ? 'set' : 'not set'}`);
+    console.log(`  history: ${storageReady() ? 'on' : 'off'} · receipts: ${BLOB_TOKEN ? 'on' : 'off'} · sign-in: ${auth.ready() ? auth.config.domain || 'any domain' : 'not configured'}`);
     if (missing.length) console.warn(`  warning — missing env vars: ${missing.join(', ')}`);
   });
 }

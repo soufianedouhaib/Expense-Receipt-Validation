@@ -132,66 +132,132 @@ public/logo.png    Applied AI wordmark (transparent, inverts in dark mode)
 
 ---
 
-## Manager view
+## Signing in
 
-A second page at `/manager.html` lists every submission. It is gated by a shared
-access code, and it needs storage — without Redis there is no history to show.
+Everyone signs in with their Google Workspace account. No passwords are stored
+by this app, and the name and email on a claim come from the verified session
+rather than from anything typed into the form.
 
-### Setup
+### Roles
 
-1. **Vercel → Storage → Upstash Redis → Create.** Connect it to the project.
-   Vercel writes `KV_REST_API_URL` and `KV_REST_API_TOKEN` into your environment
-   variables automatically. (A direct Upstash project sets `UPSTASH_REDIS_REST_URL`
-   and `UPSTASH_REDIS_REST_TOKEN` instead — the code accepts either.)
-2. **Vercel → Storage → Blob → Create.** Connect it. This sets `BLOB_READ_WRITE_TOKEN`
-   and is what lets managers open the actual receipt.
-3. **Settings → Environment Variables** → add `MANAGER_ACCESS_CODE`. Any long random
-   string. This is what managers type.
-4. Redeploy.
+| Role | Who gets it | What they see |
+|---|---|---|
+| Employee | anyone in the allowed domain | Submit a claim |
+| Manager | listed in `MANAGER_EMAILS` | Claims that name them as manager |
+| Admin | listed in `ADMIN_EMAILS` | Every claim, plus CSV export |
 
-For local work, copy all four values into `.env`.
+Roles stack. An admin who is also in `MANAGER_EMAILS` sees both doors on the
+welcome page and can switch between them.
 
-`GET /api/health` reports which of the three are live:
+Manager scoping matches on the manager email the employee entered, falling back
+to a name match. The email is the reliable one — two people with the same name
+would otherwise see each other's team. Every request is re-checked server-side,
+so the role picked on the welcome page changes the view, never the permissions.
+
+### Google Cloud setup
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → your project
+2. **APIs & Services → OAuth consent screen** → Internal (keeps it to your
+   Workspace) → fill in the app name and support email
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   → Application type **Web application**
+4. Under **Authorised redirect URIs** add exactly:
+
+   ```
+   https://<your-project>.vercel.app/api/auth/callback
+   ```
+
+   This must match `APP_URL` + `/api/auth/callback` character for character,
+   including https and no trailing slash. A mismatch is the single most common
+   sign-in failure, and Google's error names the URI it expected.
+
+5. Copy the **Client ID** and **Client secret**
+
+### Environment variables
+
+| Name | Value |
+|---|---|
+| `GOOGLE_CLIENT_ID` | from step 5 |
+| `GOOGLE_CLIENT_SECRET` | from step 5 |
+| `APP_URL` | `https://<your-project>.vercel.app`, no trailing slash |
+| `ALLOWED_EMAIL_DOMAIN` | `aaico.com` |
+| `SESSION_SECRET` | `openssl rand -base64 32` |
+| `ADMIN_EMAILS` | comma-separated |
+| `MANAGER_EMAILS` | comma-separated |
+
+Tick Production, Preview and Development, then **redeploy** — environment
+changes never reach a build that already exists.
+
+`MANAGER_ACCESS_CODE` is no longer used and can be deleted.
+
+### Pages
+
+```
+/                welcome — sign in, then choose a role
+/submit.html     employee: file a claim
+/workspace.html  manager or admin: review claims
+```
+
+Each page asks `/api/me` before rendering and sends a signed-out visitor back to
+the welcome page. That is a convenience, not the boundary: the boundary is that
+every API route checks the session cookie and the role itself.
+
+### Sessions
+
+A signed cookie, HttpOnly and Secure, valid for 12 hours. Sign out clears it and
+returns to the welcome page. The cookie carries only identity and roles — no
+tokens, nothing that can be replayed against Google.
+
+---
+
+## Storage
+
+The manager and admin views need history, which lives in Redis.
+
+1. **Vercel → Storage → Redis → Create → Connect to Project.** The code accepts
+   either the REST credentials or a plain `REDIS_URL`, whichever the integration
+   provides, with or without a name prefix.
+2. **Vercel → Storage → Blob → Create → Connect to Project.** Sets
+   `BLOB_READ_WRITE_TOKEN`, which is what lets reviewers open the receipt file.
+3. **Redeploy.** Connecting a store adds variables but does not rebuild what is
+   already running — this is the usual reason storage looks connected and
+   nothing is saved.
+
+`GET /api/health` reports the state of all of it:
 
 ```json
-{ "ok": true, "history": true, "receiptArchive": true, "managerAccess": true }
+{ "ok": true, "history": true, "storage": "tcp",
+  "receiptArchive": true, "signIn": true, "domain": "aaico.com",
+  "admins": 1, "managers": 2 }
 ```
 
 ### How it fits together
 
-Each submission writes a record to Redis (`expense:case:<caseId>`, indexed by time
-in `expense:index`) and a copy of the receipt to Blob. The employee's browser
-updates the record as it polls. If they close the tab mid-run the record would sit
-at "running" forever, so anything still running is re-checked against Opus whenever
-a manager loads the list.
+Each submission writes a record to Redis (`expense:case:<caseId>`, indexed by
+time in `expense:index`) and a copy of the receipt to Blob. The employee's
+browser updates the record as it polls. If they close the tab mid-run the record
+would sit at "running" forever, so anything still running is re-checked against
+Opus whenever a reviewer loads the list.
 
-Receipts are never linked to directly. Blob URLs stay server-side; the manager's
-"Open receipt" button hits `/api/manager/receipt/:caseId`, which checks the access
-code and streams the file back.
+Receipts are never linked to directly. Blob URLs stay server-side; the "Open
+receipt" button hits `/api/manager/receipt/:caseId`, which checks the session and
+the scope before streaming the file back.
 
-### Manager routes
+### Routes
 
-| Route | Purpose |
+| Route | Who |
 |---|---|
-| `POST /api/manager/verify` | Checks the access code |
-| `GET /api/manager/submissions` | The list, newest first, refreshing stale runs |
-| `GET /api/manager/submissions/:caseId` | One submission in full |
-| `GET /api/manager/receipt/:caseId` | Streams the archived receipt |
-| `GET /api/manager/export.csv` | The list as CSV |
+| `GET /api/auth/google`, `GET /api/auth/callback` | anyone |
+| `POST /api/auth/logout`, `GET /api/me` | anyone |
+| `POST /api/submit`, `GET /api/status/:caseId` | signed in |
+| `GET /api/manager/submissions` | manager or admin, scoped |
+| `GET /api/manager/submissions/:caseId` | manager or admin, scoped |
+| `GET /api/manager/receipt/:caseId` | manager or admin, scoped |
+| `GET /api/manager/export.csv` | admin only |
 
-### What the access code is and isn't
+### Data you are storing
 
-It is one shared secret checked server-side on every manager request, held in
-`sessionStorage` so it's gone when the tab closes. It keeps employees out of a page
-listing their colleagues' names, emails and claim amounts.
-
-It is not identity. Everyone shares one code, so you cannot tell who looked at what,
-and rotating it means telling every manager the new one. If you need an audit trail
-of who viewed which claim, that needs real per-person login — a different build.
-
-### Data you are now storing
-
-Adding this means you keep employee names, emails, job titles, phone numbers and
-receipt images for a year (`RECORD_TTL_SECONDS` in `server.js`). That is personal
-data in a second place beyond Opus. Worth a word with whoever owns data retention
-at AAICO before this goes to the whole company.
+Employee names, emails, job titles, phone numbers and receipt images are kept for
+a year (`RECORD_TTL_SECONDS` in `server.js`). That is personal data in a second
+place beyond Opus. Worth a word with whoever owns data retention at AAICO before
+this goes to the whole company.
