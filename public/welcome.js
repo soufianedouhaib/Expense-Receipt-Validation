@@ -39,6 +39,13 @@
       href: 'workspace.html?scope=all',
       icon: 'M12 3l7 4v5c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V7l7-4Z',
     },
+    {
+      role: 'admin',
+      title: 'Settings',
+      blurb: 'Which workflow this portal is wired to, and how to reach Opus support.',
+      href: 'settings.html',
+      icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7.5 7.5 0 0 0-2.1-1.2L14.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2.1 1.2l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2.5l-2 1.5 2 3.4 2.3-1a7.5 7.5 0 0 0 2.1 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2.1-1.2l2.3 1 2-3.4-2-1.5c.07-.4.1-.8.1-1.3Z',
+    },
   ];
 
   function show(id) {

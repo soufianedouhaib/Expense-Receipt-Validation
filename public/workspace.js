@@ -387,6 +387,9 @@
       $('mode-title').textContent = TITLES[scope] || 'Claims';
       if (scope === 'mine') $('search').placeholder = 'Search category or manager';
       $('switch-btn').hidden = false;
+      if ($('settings-link') && session.roles.indexOf('admin') !== -1) {
+        $('settings-link').hidden = false;
+      }
       document.body.classList.remove('is-loading');
       loadList();
     })
