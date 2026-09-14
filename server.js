@@ -51,6 +51,20 @@ const OUTPUT_SUMMARY_REPORT = process.env.OPUS_OUTPUT_SUMMARY_REPORT;
 const OUTPUT_RECEIPT = process.env.OPUS_OUTPUT_RECEIPT;
 const OUTPUT_EMPLOYEE_RECORD = process.env.OPUS_OUTPUT_EMPLOYEE_RECORD;
 
+// Where the Settings page's support button writes to. Override with
+// SUPPORT_EMAIL in Vercel if Opus give you a different address.
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@opus.com';
+
+/** Scheme + host of a URL, for display. Falls back to the raw string. */
+function hostOf(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol + '//' + u.host;
+  } catch (e) {
+    return String(url || '');
+  }
+}
+
 
 const REQUIRED_ENV = {
   OPUS_SERVICE_KEY,
@@ -530,6 +544,25 @@ app.get('/api/health', (req, res) => {
   }
 
   res.json(body);
+});
+
+/**
+ * Connection details for the Settings page. Admin only, and deliberately
+ * flag-shaped: the service key is reported as configured or not, never echoed,
+ * so the page stays safe to leave open on a screen in a room.
+ */
+app.get('/api/settings', auth.require(['admin']), (req, res) => {
+  res.json({
+    opusHost: hostOf(OPUS_BASE_URL),
+    opusBaseUrl: OPUS_BASE_URL,
+    workflowId: OPUS_WORKFLOW_ID || null,
+    serviceKeyConfigured: Boolean(OPUS_SERVICE_KEY),
+    missingEnv: missingEnv(),
+    storage: STORAGE_MODE,
+    historyReady: storageReady(),
+    receiptArchive: Boolean(BLOB_TOKEN),
+    supportEmail: SUPPORT_EMAIL,
+  });
 });
 
 app.post('/api/submit', requireSignedIn, upload.single('receipt'), async (req, res) => {
