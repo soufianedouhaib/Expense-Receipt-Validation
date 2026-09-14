@@ -1024,3 +1024,54 @@ body.is-loading .split { visibility: hidden; }
 }
 
 .count-export:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --------------------------- guest entry ---------------------------- */
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.or-divider::before, .or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.guest-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, transform .12s ease;
+}
+
+.guest-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+.guest-card:active { transform: translateY(1px); }
+.guest-card:disabled { opacity: .5; cursor: not-allowed; }
+
+.guest-text { display: flex; flex-direction: column; min-width: 0; }
+
+.guest-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 3px;
+}
+
+.guest-blurb { font-size: 13px; color: var(--ink-3); }
