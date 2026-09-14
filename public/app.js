@@ -9,6 +9,8 @@
   var POLL_TIMEOUT_MS = 5 * 60 * 1000;
   var STORE_KEY = 'aaico.expense.profile';
 
+  var isGuest = false;
+
   var PROFILE_FIELDS = [
     'jobTitle', 'managerName',
     'phoneNumber', 'dateOfBirth', 'gender',
@@ -176,10 +178,22 @@
   }
 
   function validate() {
-    ['receipt', 'amount'].forEach(clearError);
+    ['receipt', 'amount', 'fullName', 'email'].forEach(clearError);
     $('form-error').hidden = true;
 
     var ok = true;
+
+    if (isGuest) {
+      if (!$('fullName').value.trim()) {
+        showError('fullName', 'Enter your name.');
+        ok = false;
+      }
+      var typed = $('email').value.trim();
+      if (!typed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)) {
+        showError('email', 'Enter a valid email address.');
+        ok = false;
+      }
+    }
 
     if (!fileInput.files.length) {
       showError('receipt', 'Attach the receipt before submitting.');
@@ -197,13 +211,17 @@
 
   /* ------------------------- profile persistence --------------------- */
 
+  function profileFields() {
+    return isGuest ? PROFILE_FIELDS.concat(['fullName', 'email']) : PROFILE_FIELDS;
+  }
+
   function saveProfile() {
     if (!$('remember').checked) {
       try { localStorage.removeItem(STORE_KEY); } catch (e) {}
       return;
     }
     var data = {};
-    PROFILE_FIELDS.forEach(function (f) { data[f] = $(f).value; });
+    profileFields().forEach(function (f) { data[f] = $(f).value; });
     try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
   }
 
@@ -213,8 +231,8 @@
     if (!raw) return;
     try {
       var data = JSON.parse(raw);
-      PROFILE_FIELDS.forEach(function (f) {
-        if (data[f]) $(f).value = data[f];
+      profileFields().forEach(function (f) {
+        if (data[f] && $(f)) $(f).value = data[f];
       });
     } catch (e) {}
   }
@@ -245,10 +263,11 @@
 
     var fd = new FormData();
     fd.append('receipt', fileInput.files[0]);
-    ['amount', 'currency', 'jobTitle', 'managerName',
-     'phoneNumber', 'dateOfBirth', 'gender'].forEach(function (f) {
-      fd.append(f, $(f).value);
-    });
+    var fields = ['amount', 'currency', 'jobTitle', 'managerName',
+                  'phoneNumber', 'dateOfBirth', 'gender'];
+    // A signed-in claim takes its identity from the session; a guest sends it.
+    if (isGuest) fields = fields.concat(['fullName', 'email']);
+    fields.forEach(function (f) { fd.append(f, $(f).value); });
 
     lastPayload = fd;
     submitBtn.disabled = true;
@@ -429,11 +448,28 @@
     .then(function (r) { return r.json(); })
     .then(function (me) {
       if (!me.signedIn) { window.location.href = '/'; return; }
-      $('who').textContent = me.name || me.email;
-      $('id-name').textContent = me.name || '—';
-      $('id-email').textContent = me.email || '—';
+
+      isGuest = Boolean(me.guest);
+
+      if (isGuest) {
+        // No verified identity, so the fields are the person's to fill in, and
+        // the history links go away — there is no "mine" to show a guest.
+        $('who').textContent = 'Guest';
+        $('identity-fields').hidden = false;
+        $('details-sub').textContent = 'Tell us who this claim is for';
+        $('signout-btn').textContent = 'Leave';
+        $('my-claims-link').hidden = true;
+        if ($('all-claims-link')) $('all-claims-link').hidden = true;
+      } else {
+        $('who').textContent = me.name || me.email;
+        $('identity').hidden = false;
+        $('id-name').textContent = me.name || '—';
+        $('id-email').textContent = me.email || '—';
+      }
+
       document.body.classList.remove('is-loading');
       loadProfile();
+
       // Demo accounts come with a manager already assigned; only fill it in if
       // the person has not typed or saved one of their own.
       if (me.defaultManager && !$('managerName').value) {
