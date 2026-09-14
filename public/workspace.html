@@ -44,9 +44,37 @@
           </div>
         </div>
 
+        <div class="list-filters list-filters-period">
+          <div class="f1">
+            <select id="filter-period" aria-label="Filter by period">
+              <option value="all">All time</option>
+              <option value="this-month">This month</option>
+              <option value="last-month">Last month</option>
+              <option value="last-3">Last 3 months</option>
+              <option value="last-30">Last 30 days</option>
+              <option value="ytd">This year</option>
+              <option value="custom">Custom range…</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="list-filters list-filters-dates" id="custom-range" hidden>
+          <div class="f1">
+            <label class="fl" for="date-from">From</label>
+            <input type="date" id="date-from">
+          </div>
+          <div class="f1">
+            <label class="fl" for="date-to">To</label>
+            <input type="date" id="date-to">
+          </div>
+        </div>
+
         <div class="list-count">
           <span id="count-total">Loading…</span>
-          <span class="pill" id="count-attention"></span>
+          <span class="count-right">
+            <span class="pill" id="count-attention"></span>
+            <a class="count-export" id="export-link" href="#">Export CSV</a>
+          </span>
         </div>
 
         <div class="list-rows" id="rows"></div>
