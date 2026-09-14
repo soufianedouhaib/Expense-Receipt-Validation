@@ -66,42 +66,106 @@ function missingEnv() {
 }
 
 /* ------------------------------------------------------------------ *
- * Storage — Upstash Redis for records, Vercel Blob for receipt copies.
+ * Storage — Redis for records, Vercel Blob for receipt copies.
  * ------------------------------------------------------------------ */
 
 const INDEX_KEY = 'expense:index';           // sorted set, score = submittedAt ms
 const RECORD_KEY = (id) => `expense:case:${id}`;
 const RECORD_TTL_SECONDS = 60 * 60 * 24 * 365; // keep a year of history
 
-// Vercel's Upstash integration writes KV_REST_API_*; a direct Upstash project
-// writes UPSTASH_REDIS_REST_*. Accept either so setup can't trip on the name.
-const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-
-let redis = null;
-if (REDIS_URL && REDIS_TOKEN) {
-  try {
-    const { Redis } = require('@upstash/redis');
-    redis = new Redis({ url: REDIS_URL, token: REDIS_TOKEN });
-  } catch (e) {
-    console.warn('[storage] @upstash/redis not installed — history disabled.', e.message);
+/**
+ * Find an environment variable by suffix, so a prefix chosen when the store was
+ * connected (MYSTORE_REDIS_URL) still resolves.
+ */
+function findEnv(...suffixes) {
+  for (const suffix of suffixes) {
+    if (process.env[suffix]) return { name: suffix, value: process.env[suffix] };
   }
+  for (const suffix of suffixes) {
+    const name = Object.keys(process.env).find((k) => k.endsWith(suffix) && process.env[k]);
+    if (name) return { name, value: process.env[name] };
+  }
+  return { name: null, value: undefined };
 }
 
-const storageReady = () => Boolean(redis);
+const restUrlVar = findEnv('KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL');
+const restTokenVar = findEnv('KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN');
+const tcpUrlVar = findEnv('REDIS_URL', 'KV_URL');
+const blobTokenVar = findEnv('BLOB_READ_WRITE_TOKEN');
+
+const REST_URL = /^https?:\/\//.test(restUrlVar.value || '') ? restUrlVar.value : undefined;
+const REST_TOKEN = restTokenVar.value;
+const TCP_URL = /^rediss?:\/\//.test(tcpUrlVar.value || '') ? tcpUrlVar.value : undefined;
+const BLOB_TOKEN = blobTokenVar.value;
+
+// Two ways to reach the same Redis. Vercel's integration injects one or the
+// other depending on how the store was created, so support both: REST when it
+// is there (better suited to serverless), a normal connection otherwise.
+const STORAGE_MODE = (REST_URL && REST_TOKEN) ? 'rest' : (TCP_URL ? 'tcp' : null);
+const storageReady = () => STORAGE_MODE !== null;
+
+let restClient = null;
+let tcpClient = null;
+
+function getRestClient() {
+  if (!restClient) {
+    const { Redis } = require('@upstash/redis');
+    restClient = new Redis({ url: REST_URL, token: REST_TOKEN });
+  }
+  return restClient;
+}
+
+async function getTcpClient() {
+  if (tcpClient && tcpClient.isOpen) return tcpClient;
+  const { createClient } = require('redis');
+  tcpClient = createClient({ url: TCP_URL });
+  tcpClient.on('error', (e) => console.error('[redis]', e.message));
+  await tcpClient.connect();
+  return tcpClient;
+}
+
+async function redisSet(key, value) {
+  if (STORAGE_MODE === 'rest') {
+    return getRestClient().set(key, value, { ex: RECORD_TTL_SECONDS });
+  }
+  const client = await getTcpClient();
+  return client.sendCommand(['SET', key, JSON.stringify(value), 'EX', String(RECORD_TTL_SECONDS)]);
+}
+
+async function redisGet(key) {
+  if (STORAGE_MODE === 'rest') {
+    return getRestClient().get(key);
+  }
+  const client = await getTcpClient();
+  const raw = await client.sendCommand(['GET', key]);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function redisZAdd(key, score, member) {
+  if (STORAGE_MODE === 'rest') {
+    return getRestClient().zadd(key, { score, member });
+  }
+  const client = await getTcpClient();
+  return client.sendCommand(['ZADD', key, String(score), member]);
+}
+
+async function redisZRangeRev(key, limit) {
+  if (STORAGE_MODE === 'rest') {
+    return getRestClient().zrange(key, 0, limit - 1, { rev: true });
+  }
+  const client = await getTcpClient();
+  return client.sendCommand(['ZRANGE', key, '0', String(limit - 1), 'REV']);
+}
 
 async function saveRecord(record) {
-  if (!redis) return;
+  if (!storageReady()) return;
   try {
-    await redis.set(RECORD_KEY(record.caseId), record, { ex: RECORD_TTL_SECONDS });
-    await redis.zadd(INDEX_KEY, {
-      score: new Date(record.submittedAt).getTime(),
-      member: record.caseId,
-    });
+    await redisSet(RECORD_KEY(record.caseId), record);
+    await redisZAdd(INDEX_KEY, new Date(record.submittedAt).getTime(), record.caseId);
   } catch (err) {
     // History is secondary — never fail an employee's submission over it.
-    console.error('[storage] save failed', err);
+    console.error('[storage] save failed', err.message);
   }
 }
 
@@ -109,24 +173,24 @@ async function saveRecord(record) {
 const updateRecord = saveRecord;
 
 async function loadRecord(caseId) {
-  if (!redis) return null;
+  if (!storageReady()) return null;
   try {
-    return await redis.get(RECORD_KEY(caseId));
+    return await redisGet(RECORD_KEY(caseId));
   } catch (err) {
-    console.error('[storage] load failed', err);
+    console.error('[storage] load failed', err.message);
     return null;
   }
 }
 
 async function listRecords(limit = 300) {
-  if (!redis) return [];
+  if (!storageReady()) return [];
   try {
-    const ids = await redis.zrange(INDEX_KEY, 0, limit - 1, { rev: true });
+    const ids = await redisZRangeRev(INDEX_KEY, limit);
     if (!ids || !ids.length) return [];
     const records = await Promise.all(ids.map((id) => loadRecord(id)));
     return records.filter(Boolean);
   } catch (err) {
-    console.error('[storage] list failed', err);
+    console.error('[storage] list failed', err.message);
     return [];
   }
 }
@@ -341,14 +405,30 @@ function requireManager(req, res, next) {
 
 app.get('/api/health', (req, res) => {
   const missing = missingEnv();
-  res.json({
+  const body = {
     ok: missing.length === 0,
     missingEnv: missing,
     history: storageReady(),
-    storage: storageReady() ? 'redis' : null,
+    storage: STORAGE_MODE,
     receiptArchive: Boolean(BLOB_TOKEN),
     managerAccess: Boolean(MANAGER_ACCESS_CODE),
-  });
+  };
+
+  // Diagnostics, behind the manager code: which variables were matched, and what
+  // storage-ish names exist in the environment. Names only — never any values.
+  if (MANAGER_ACCESS_CODE && codeMatches(req.query.code)) {
+    body.matched = {
+      restUrl: restUrlVar.name,
+      restToken: restTokenVar.name,
+      tcpUrl: tcpUrlVar.name,
+      blobToken: blobTokenVar.name,
+    };
+    body.storageEnvNames = Object.keys(process.env)
+      .filter((k) => /REDIS|KV_|BLOB|UPSTASH/i.test(k))
+      .sort();
+  }
+
+  res.json(body);
 });
 
 app.post('/api/submit', upload.single('receipt'), async (req, res) => {
@@ -526,7 +606,7 @@ function toRow(record) {
 app.get('/api/manager/submissions', requireManager, async (req, res) => {
   if (!storageReady()) {
     return res.status(503).json({
-      error: 'History storage is not configured. Connect Upstash Redis in Vercel, then redeploy.',
+      error: 'History storage is not configured. No REDIS_URL or REST credentials were found in the environment.',
     });
   }
   try {
