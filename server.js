@@ -714,6 +714,43 @@ async function resolveScope(req) {
   return { scope: 'mine', key: BY_EMPLOYEE(String(session.email).toLowerCase()) };
 }
 
+/**
+ * The date range to show, from the query string.
+ *
+ * fromMs/toMs are exact instants and come from the browser, which computes them
+ * in the viewer's own timezone — so "this month" means their month, not UTC's.
+ * from/to accept plain YYYY-MM-DD for anyone calling the URL by hand.
+ */
+function dateWindow(req) {
+  const ms = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  let from = ms(req.query.fromMs);
+  let to = ms(req.query.toMs);
+
+  if (from === null && req.query.from) {
+    const d = new Date(String(req.query.from) + 'T00:00:00Z');
+    if (!isNaN(d)) from = d.getTime();
+  }
+  if (to === null && req.query.to) {
+    const d = new Date(String(req.query.to) + 'T23:59:59.999Z');
+    if (!isNaN(d)) to = d.getTime();
+  }
+
+  return { from, to };
+}
+
+function withinWindow(record, win) {
+  if (win.from === null && win.to === null) return true;
+  const t = new Date(record.submittedAt).getTime();
+  if (isNaN(t)) return true;           // never hide a record over a bad date
+  if (win.from !== null && t < win.from) return false;
+  if (win.to !== null && t > win.to) return false;
+  return true;
+}
+
 /** Your own claim, one naming you as manager, or anything at all if admin. */
 function maySee(session, record) {
   return isAdmin(session) || ownsClaim(session, record) || managesClaim(session, record);
@@ -729,7 +766,9 @@ app.get('/api/claims', requireSignedIn, async (req, res) => {
     const resolved = await resolveScope(req);
     if (resolved.error) return res.status(403).json({ error: resolved.error });
 
+    const win = dateWindow(req);
     let records = await listRecords(300, resolved.key);
+    records = records.filter((r) => withinWindow(r, win));
     records = await refreshStale(records);
 
     res.json({
@@ -802,7 +841,10 @@ app.get('/api/claims.csv', requireSignedIn, async (req, res) => {
     const resolved = await resolveScope(req);
     if (resolved.error) return res.status(403).send(resolved.error);
 
-    const rows = (await listRecords(1000, resolved.key)).map(toRow);
+    const win = dateWindow(req);
+    const rows = (await listRecords(1000, resolved.key))
+      .filter((r) => withinWindow(r, win))
+      .map(toRow);
 
     const columns = [
       ['Submitted at', 'submittedAt'], ['Employee', 'employeeName'], ['Email', 'employeeEmail'],
@@ -823,10 +865,15 @@ app.get('/api/claims.csv', requireSignedIn, async (req, res) => {
       .concat(rows.map((r) => columns.map(([, key]) => esc(r[key])).join(',')))
       .join('\n');
 
-    const stamp = new Date().toISOString().slice(0, 10);
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const period = (win.from !== null || win.to !== null)
+      ? (win.from !== null ? day(win.from) : 'start') + '_to_' +
+        (win.to !== null ? day(win.to) : 'now')
+      : 'all-time';
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition',
-      'attachment; filename="claims-' + resolved.scope + '-' + stamp + '.csv"');
+      'attachment; filename="claims-' + resolved.scope + '-' + period + '.csv"');
     res.send('﻿' + csv); // BOM so Excel reads UTF-8 correctly
   } catch (err) {
     console.error('[csv]', err);
