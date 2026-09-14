@@ -13,7 +13,7 @@
  *   6. GET  /case/{caseId}/results  -> { results: { workflow_output_*: { value } } }
  *
  * Persistence (added for the manager view):
- *   - Upstash Redis  holds one record per submission, plus an index ordered by time.
+ *   - Upstash Redis  one record per submission, plus an index ordered by time.
  *   - Vercel Blob    holds a private copy of each receipt, since Opus's own file
  *                    URLs are internal references that cannot be fetched back.
  *
@@ -105,6 +105,9 @@ async function saveRecord(record) {
   }
 }
 
+// A Redis set overwrites, so updating is the same operation as saving.
+const updateRecord = saveRecord;
+
 async function loadRecord(caseId) {
   if (!redis) return null;
   try {
@@ -115,7 +118,7 @@ async function loadRecord(caseId) {
   }
 }
 
-async function listRecords(limit = 200) {
+async function listRecords(limit = 300) {
   if (!redis) return [];
   try {
     const ids = await redis.zrange(INDEX_KEY, 0, limit - 1, { rev: true });
@@ -304,7 +307,7 @@ async function applyOutcome(caseId, outcome) {
   } else {
     record.opusStatus = outcome.status;
   }
-  await saveRecord(record);
+  await updateRecord(record);
 }
 
 /* ------------------------------------------------------------------ *
@@ -342,6 +345,7 @@ app.get('/api/health', (req, res) => {
     ok: missing.length === 0,
     missingEnv: missing,
     history: storageReady(),
+    storage: storageReady() ? 'redis' : null,
     receiptArchive: Boolean(BLOB_TOKEN),
     managerAccess: Boolean(MANAGER_ACCESS_CODE),
   });
@@ -522,11 +526,11 @@ function toRow(record) {
 app.get('/api/manager/submissions', requireManager, async (req, res) => {
   if (!storageReady()) {
     return res.status(503).json({
-      error: 'History storage is not configured. Add the Upstash Redis integration in Vercel and set its environment variables.',
+      error: 'History storage is not configured. Connect Upstash Redis in Vercel, then redeploy.',
     });
   }
   try {
-    let records = await listRecords(300);
+    let records = await listRecords();
     records = await refreshStale(records);
     res.json({ submissions: records.map(toRow) });
   } catch (err) {
@@ -586,7 +590,7 @@ app.get('/api/manager/receipt/:caseId', requireManager, async (req, res) => {
 app.get('/api/manager/export.csv', requireManager, async (req, res) => {
   if (!storageReady()) return res.status(503).send('History storage is not configured.');
   try {
-    const records = await listRecords(1000);
+    const records = await listRecords();
     const rows = records.map(toRow);
 
     const columns = [
