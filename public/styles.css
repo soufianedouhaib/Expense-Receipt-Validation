@@ -253,7 +253,9 @@ body {
 
 .form-aside { position: sticky; top: 20px; min-width: 0; }
 
-#view-progress, #view-result, #view-error { max-width: 660px; }
+/* The result is a document and keeps a reading width; progress and failure are
+   single cards and take the whole shell, so .stage can centre them. */
+#view-result { max-width: 660px; margin-inline: auto; }
 
 .intro { margin-bottom: 24px; }
 
@@ -1390,13 +1392,35 @@ body.is-loading .split { visibility: hidden; }
 
 body.side-open .side { width: 216px; }
 
+/* The page never moves. An expanded rail floats over it behind a blurred
+   scrim, so opening the menu is a momentary overlay rather than a reflow of
+   everything the person was looking at. */
 .app-main {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   margin-left: 58px;
-  transition: margin-left .18s ease;
 }
 
-body.side-open .app-main { margin-left: 216px; }
+.side-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgba(15, 20, 25, .28);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+
+body.side-open .side-scrim { opacity: 1; pointer-events: auto; }
+
+:root[data-theme="dark"] .side-scrim { background: rgba(0, 0, 0, .46); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .side-scrim { background: rgba(0, 0, 0, .46); }
+}
 
 .side-top {
   display: flex;
@@ -1499,12 +1523,16 @@ body.side-open .side-label { opacity: 1; }
 
 body.is-loading .side { visibility: hidden; }
 
+/* The rail casts a shadow while open, so it reads as sitting above the page. */
+body.side-open .side { box-shadow: 0 0 40px -12px rgba(15, 20, 25, .35); }
+
 @media (max-width: 720px) {
   .side { width: 52px; }
   .app-main { margin-left: 52px; }
-  /* Open, the rail floats over the page rather than squeezing it. */
-  body.side-open .app-main { margin-left: 52px; }
-  body.side-open .side { box-shadow: 0 0 0 100vmax rgba(15,20,25,.32); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side, .side-scrim, .side-label { transition: none; }
 }
 
 /* ==================================================================
@@ -1514,11 +1542,26 @@ body.is-loading .side { visibility: hidden; }
    rather than hanging from the top-left like one.
    ================================================================== */
 
+/* The shell grows to fill whatever the footer leaves, and the stage takes all
+   of it — so "Checking your receipt" sits in the middle of the window rather
+   than hanging near the top of a short box. */
+.app-main > .shell {
+  flex: 1 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main > .foot { flex: none; }
+
+.shell > .view { flex: 1 0 auto; }
+
 .stage {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  min-height: min(62vh, 540px);
+  min-height: 0;
   padding-block: 8px;
 }
 
