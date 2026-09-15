@@ -289,8 +289,12 @@
 
       function bucket(store, name) {
         if (!name) return;
-        if (!store[name]) store[name] = { name: name, approved: 0, attention: 0, count: 0 };
+        if (!store[name]) {
+          store[name] = { name: name, approved: 0, attention: 0,
+                          approvedCount: 0, attentionCount: 0, count: 0 };
+        }
         store[name][approved ? 'approved' : 'attention'] += n;
+        store[name][approved ? 'approvedCount' : 'attentionCount'] += 1;
         store[name].count += 1;
       }
       bucket(people, row.employeeName || row.employeeEmail);
@@ -454,7 +458,8 @@
           rx: Math.min(4, barW / 2, h),
           class: 'bar bar-' + key,
         });
-        rect.dataset.month = b.label;
+        rect.dataset.head = b.label;
+        rect.dataset.tone = key === 'approved' ? 'ok' : 'warn';
         rect.dataset.series = key === 'approved' ? 'Approved' : 'Needs attention';
         rect.dataset.value = money(value, currency);
         rect.dataset.count = key === 'approved' ? b.approvedCount : b.attentionCount;
@@ -483,24 +488,30 @@
       });
     });
 
-    wireTooltip(host, tip);
+    wireTooltip(host, tip, '.bar');
   }
 
-  function wireTooltip(host, tip) {
+  /* Every mark carries its own figures on data- attributes, so one handler
+     serves both the monthly chart and the ranked bars: hover a green segment
+     and you get the approved amount, hover the gold and you get what still
+     needs attention. `selector` is what counts as a mark on that panel. */
+  function wireTooltip(host, tip, selector) {
     host.addEventListener('mousemove', function (e) {
-      var bar = e.target.closest ? e.target.closest('.bar') : null;
-      if (!bar) { tip.hidden = true; return; }
+      var mark = e.target.closest ? e.target.closest(selector) : null;
+      if (!mark || !mark.dataset.value) { tip.hidden = true; return; }
 
       tip.innerHTML = '';
-      tip.appendChild(el('div', 'tip-head', bar.dataset.month));
+      tip.appendChild(el('div', 'tip-head', mark.dataset.head));
+
       var line = el('div', 'tip-line');
       line.appendChild(el('span', 'swatch ' +
-        (bar.classList.contains('bar-approved') ? 'swatch-ok' : 'swatch-warn')));
-      line.appendChild(el('span', 'tip-series', bar.dataset.series));
-      line.appendChild(el('span', 'tip-value', bar.dataset.value));
+        (mark.dataset.tone === 'ok' ? 'swatch-ok' : 'swatch-warn')));
+      line.appendChild(el('span', 'tip-series', mark.dataset.series));
+      line.appendChild(el('span', 'tip-value', mark.dataset.value));
       tip.appendChild(line);
+
       tip.appendChild(el('div', 'tip-foot',
-        bar.dataset.count + ' claim' + (bar.dataset.count === '1' ? '' : 's')));
+        mark.dataset.count + ' claim' + (mark.dataset.count === '1' ? '' : 's')));
 
       var box = host.getBoundingClientRect();
       tip.hidden = false;
@@ -546,12 +557,13 @@
 
   /* --------------------------- chapters 3 and 4 -------------------------- */
 
-  function panelBars(items, eyebrow, title, empty) {
+  function panelBars(items, eyebrow, title, empty, currency) {
     var root = $('tpl-bars').content.cloneNode(true).firstElementChild;
     slot(root, 'eyebrow').textContent = eyebrow;
     slot(root, 'title').textContent = title;
 
     var host = slot(root, 'rank');
+    wireTooltip(host, slot(root, 'tip'), '.rank-fill');
     if (!items.length) {
       slot(root, 'empty').textContent = empty;
       slot(root, 'empty').hidden = false;
@@ -573,6 +585,24 @@
       var track = el('span', 'rank-track');
       var okFill = el('span', 'rank-fill rank-ok');
       var warnFill = el('span', 'rank-fill rank-warn');
+
+      // Hovering either half asks a different question, so each half answers
+      // for itself rather than both reporting the row's combined total.
+      if (it.approved > 0) {
+        okFill.dataset.head = it.name;
+        okFill.dataset.tone = 'ok';
+        okFill.dataset.series = 'Approved';
+        okFill.dataset.value = money(it.approved, currency);
+        okFill.dataset.count = it.approvedCount;
+      }
+      if (it.attention > 0) {
+        warnFill.dataset.head = it.name;
+        warnFill.dataset.tone = 'warn';
+        warnFill.dataset.series = 'Needs attention';
+        warnFill.dataset.value = money(it.attention, currency);
+        warnFill.dataset.count = it.attentionCount;
+      }
+
       track.appendChild(okFill);
       track.appendChild(warnFill);
       row.appendChild(track);
@@ -658,10 +688,10 @@
     { title: 'Over time',     blurb: 'Month by month',         build: function (v) { return panelChart(v); } },
     { title: 'By person',     blurb: 'Who is claiming what',   build: function (v) {
         return panelBars(v.people, 'By person', 'Claimed value per person',
-                         'Nobody has claimed in this period.'); } },
+                         'Nobody has claimed in this period.', v.currency); } },
     { title: 'By category',   blurb: 'Where the money goes',   build: function (v) {
         return panelBars(v.cats, 'By category', 'Claimed value per category',
-                         'No categories to show for this period.'); } },
+                         'No categories to show for this period.', v.currency); } },
     { title: 'Needs chasing', blurb: 'Still open',             build: function (v) { return panelChase(v); } },
   ];
 

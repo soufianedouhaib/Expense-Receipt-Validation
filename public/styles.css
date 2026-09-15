@@ -1593,6 +1593,8 @@ body.is-loading .split { visibility: hidden; }
 
 /* ------------------------------ ranked bars ---------------------------- */
 
+.rank-wrap { position: relative; }
+
 .rank { display: flex; flex-direction: column; gap: 12px; }
 
 .rank-row {
@@ -1611,13 +1613,34 @@ body.is-loading .split { visibility: hidden; }
   height: 10px;
   border-radius: 99px;
   background: var(--grid);
-  overflow: hidden;
 }
 
 .rank-fill {
   width: 0;
   border-radius: 99px;
-  transition: width .6s cubic-bezier(.2,.7,.3,1);
+  transition: width .6s cubic-bezier(.2,.7,.3,1), opacity .12s ease;
+}
+
+/* Hovering one half dims the other, so it is obvious which figure the
+   tooltip is reporting. */
+.rank-track:hover .rank-fill { opacity: .5; }
+.rank-track .rank-fill:hover { opacity: 1; }
+
+/* A sliver of a segment is hard to point at; a taller invisible hit area
+   over each half makes both reachable. */
+.rank-track { position: relative; overflow: visible; }
+.rank-track::after {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
+  border-radius: 99px;
+  pointer-events: none;
+}
+.rank-fill { position: relative; }
+.rank-fill::after {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
 }
 
 .rank-ok   { background: var(--series-ok); }
