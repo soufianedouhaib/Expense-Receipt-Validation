@@ -547,11 +547,11 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * Connection details for the Settings page. Admin only, and deliberately
+ * Connection details for the Settings page. Managers and admins, and deliberately
  * flag-shaped: the service key is reported as configured or not, never echoed,
  * so the page stays safe to leave open on a screen in a room.
  */
-app.get('/api/settings', auth.require(['admin']), (req, res) => {
+app.get('/api/settings', auth.require(['admin', 'manager']), (req, res) => {
   res.json({
     opusHost: hostOf(OPUS_BASE_URL),
     opusBaseUrl: OPUS_BASE_URL,
@@ -562,6 +562,19 @@ app.get('/api/settings', auth.require(['admin']), (req, res) => {
     historyReady: storageReady(),
     receiptArchive: Boolean(BLOB_TOKEN),
     supportEmail: SUPPORT_EMAIL,
+  });
+});
+
+/**
+ * The bare minimum any signed-in person needs to raise a support request: where
+ * to write and which workflow to name. It carries no configuration state, so it
+ * is safe for an employee whose claim failed — they are the one who needs it.
+ */
+app.get('/api/support', requireSignedIn, (req, res) => {
+  res.json({
+    supportEmail: SUPPORT_EMAIL,
+    workflowId: OPUS_WORKFLOW_ID || null,
+    opusHost: hostOf(OPUS_BASE_URL),
   });
 });
 
@@ -731,6 +744,11 @@ function toRow(record) {
     jobTitle: emp.jobTitle || '',
     managerName: emp.managerName || '',
     submittedTotal: record.submittedTotal,
+    // The parts as well as the printed string: the workspace sums claims by
+    // currency, and parsing "1291.50 AED" back apart in the browser would be
+    // guesswork the moment a currency prints differently.
+    amount: record.amount != null ? record.amount : '',
+    currency: record.currency || '',
     extractedTotal: report.extracted_total
       ? `${report.extracted_total.amount || ''} ${report.extracted_total.currency || ''}`.trim()
       : '',
