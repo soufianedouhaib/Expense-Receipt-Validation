@@ -98,6 +98,14 @@
     var y = now.getFullYear(), m = now.getMonth();
 
     switch (key) {
+      case 'this-month':
+        return { from: new Date(y, m, 1).getTime(),
+                 to: endOfDay(new Date(y, m + 1, 0)).getTime() };
+      case 'last-month':
+        return { from: new Date(y, m - 1, 1).getTime(),
+                 to: endOfDay(new Date(y, m, 0)).getTime() };
+      case 'last-3':
+        return { from: new Date(y, m - 2, 1).getTime(), to: endOfDay(now).getTime() };
       case 'last-6':
         return { from: new Date(y, m - 5, 1).getTime(), to: endOfDay(now).getTime() };
       case 'last-12':
@@ -131,8 +139,16 @@
       var f = $('rep-from').value, t = $('rep-to').value;
       if (f || t) return (f || 'the start') + ' → ' + (t || 'today');
     }
+
+    // A named month reads better than "this month" once it is on the page.
+    var now = new Date();
+    if (key === 'this-month') return monthLabelLong(monthKeyOf(now));
+    if (key === 'last-month') {
+      return monthLabelLong(monthKeyOf(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
+    }
+
     return {
-      'last-6': 'Last 6 months', 'last-12': 'Last 12 months',
+      'last-3': 'Last 3 months', 'last-6': 'Last 6 months', 'last-12': 'Last 12 months',
       'ytd': 'This year', 'all': 'All time',
     }[key] || 'This period';
   }
@@ -168,6 +184,10 @@
     if (row.currency) return String(row.currency).toUpperCase();
     var m = String(row.submittedTotal || '').match(/([A-Za-z]{3})\s*$/);
     return m ? m[1].toUpperCase() : '';
+  }
+
+  function monthKeyOf(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   }
 
   function monthKey(iso) {
