@@ -23,115 +23,149 @@
 
     <p class="page-error" id="page-error" hidden></p>
 
-    <!-- ------------------------- controls ------------------------- -->
-    <div class="card rep-controls">
-      <div class="rep-field" id="scope-wrap" hidden>
-        <label for="rep-scope">Claims</label>
-        <select id="rep-scope">
-          <option value="team">My team</option>
-          <option value="all">Everyone</option>
-        </select>
+    <div class="card report-card">
+
+      <!-- ---------------- pinned headline ribbon ---------------- -->
+      <div class="ribbon">
+        <div class="rb">
+          <span class="rb-k">Approved</span>
+          <span class="rb-v ok" id="k-approved">—</span>
+          <span class="rb-s" id="k-approved-sub">—</span>
+        </div>
+        <div class="rb">
+          <span class="rb-k">Needs attention</span>
+          <span class="rb-v warn" id="k-attention">—</span>
+          <span class="rb-s" id="k-attention-sub">—</span>
+        </div>
+        <div class="rb">
+          <span class="rb-k">Cleared</span>
+          <span class="rb-v" id="k-rate">—</span>
+          <span class="rb-s">by value</span>
+        </div>
+        <div class="rb">
+          <span class="rb-k">Claims</span>
+          <span class="rb-v" id="k-count">—</span>
+          <span class="rb-s" id="k-count-sub">—</span>
+        </div>
+
+        <div class="rb-controls">
+          <select id="rep-scope" aria-label="Whose claims" hidden>
+            <option value="team">My team</option>
+            <option value="all">Everyone</option>
+          </select>
+
+          <select id="rep-period" aria-label="Period">
+            <option value="last-6">Last 6 months</option>
+            <option value="last-12">Last 12 months</option>
+            <option value="ytd">This year</option>
+            <option value="month">A single month…</option>
+            <option value="custom">Custom range…</option>
+            <option value="all">All time</option>
+          </select>
+
+          <input type="month" id="rep-month" aria-label="Month" hidden>
+          <input type="date" id="rep-from" aria-label="From" hidden>
+          <input type="date" id="rep-to" aria-label="To" hidden>
+          <select id="rep-currency" aria-label="Currency" hidden></select>
+        </div>
       </div>
 
-      <div class="rep-field">
-        <label for="rep-period">Period</label>
-        <select id="rep-period">
-          <option value="last-6">Last 6 months</option>
-          <option value="last-12">Last 12 months</option>
-          <option value="ytd">This year</option>
-          <option value="month">A single month…</option>
-          <option value="custom">Custom range…</option>
-          <option value="all">All time</option>
-        </select>
+      <!-- ---------------- chapters ---------------- -->
+      <div class="chapters">
+        <nav class="chapter-list" id="chapter-list" aria-label="Report sections"></nav>
+        <div class="chapter-body" id="chapter-body" aria-live="polite"></div>
       </div>
 
-      <div class="rep-field" id="month-wrap" hidden>
-        <label for="rep-month">Month</label>
-        <input type="month" id="rep-month">
-      </div>
-
-      <div class="rep-field" id="from-wrap" hidden>
-        <label for="rep-from">From</label>
-        <input type="date" id="rep-from">
-      </div>
-
-      <div class="rep-field" id="to-wrap" hidden>
-        <label for="rep-to">To</label>
-        <input type="date" id="rep-to">
-      </div>
-
-      <div class="rep-field rep-field-end">
-        <label for="rep-currency">Currency</label>
-        <select id="rep-currency"></select>
-      </div>
     </div>
-
-    <!-- ------------------------- headline ------------------------- -->
-    <div class="rep-tiles">
-      <div class="card tile">
-        <span class="tile-label">Approved</span>
-        <span class="tile-value tile-ok" id="t-approved">—</span>
-        <span class="tile-sub" id="t-approved-sub">—</span>
-      </div>
-      <div class="card tile">
-        <span class="tile-label">Needs attention</span>
-        <span class="tile-value tile-warn" id="t-attention">—</span>
-        <span class="tile-sub" id="t-attention-sub">—</span>
-      </div>
-      <div class="card tile">
-        <span class="tile-label">Approved share</span>
-        <span class="tile-value" id="t-rate">—</span>
-        <span class="tile-sub" id="t-rate-sub">by value</span>
-      </div>
-      <div class="card tile">
-        <span class="tile-label">Claims</span>
-        <span class="tile-value" id="t-count">—</span>
-        <span class="tile-sub" id="t-count-sub">—</span>
-      </div>
-    </div>
-
-    <!-- --------------------------- chart -------------------------- -->
-    <section class="card chart-card" aria-labelledby="h-chart">
-      <header class="chart-head">
-        <div>
-          <h2 class="card-title" id="h-chart">Amount approved and needing attention</h2>
-          <p class="card-sub" id="chart-sub">By month</p>
-        </div>
-        <div class="legend" id="legend">
-          <span class="legend-item"><span class="swatch swatch-ok" aria-hidden="true"></span>Approved</span>
-          <span class="legend-item"><span class="swatch swatch-warn" aria-hidden="true"></span>Needs attention</span>
-        </div>
-      </header>
-
-      <div class="chart-wrap">
-        <div id="chart" class="chart" role="img" aria-labelledby="h-chart" aria-describedby="chart-table"></div>
-        <div class="chart-tip" id="chart-tip" hidden></div>
-      </div>
-
-      <p class="chart-empty" id="chart-empty" hidden>No claims in this period.</p>
-
-      <details class="chart-data">
-        <summary>See the numbers</summary>
-        <div class="table-scroll">
-          <table class="data-table" id="chart-table">
-            <thead>
-              <tr>
-                <th scope="col">Month</th>
-                <th scope="col">Approved</th>
-                <th scope="col">Needs attention</th>
-                <th scope="col">Claims</th>
-              </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-          </table>
-        </div>
-      </details>
-    </section>
 
   </main>
 
   <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
   </div>
+
+  <!-- Panel templates. Kept in the page so the markup is readable rather than
+       built out of string concatenation in the script. -->
+  <template id="tpl-headline">
+    <div class="ch-panel">
+      <div class="headline">
+        <div class="headline-nums">
+          <p class="ch-eyebrow" data-slot="period">—</p>
+          <div class="big ok" data-slot="approved">0</div>
+          <p class="big-sub" data-slot="approved-sub">—</p>
+          <div class="big big-2 warn" data-slot="attention">0</div>
+          <p class="big-sub" data-slot="attention-sub">—</p>
+        </div>
+        <figure class="ring-wrap">
+          <svg class="ring" viewBox="0 0 120 120" role="img" data-slot="ring-label">
+            <circle class="ring-track" cx="60" cy="60" r="48"></circle>
+            <circle class="ring-arc" cx="60" cy="60" r="48" data-slot="arc"></circle>
+            <text class="ring-pct" x="60" y="57" text-anchor="middle" data-slot="pct">0%</text>
+            <text class="ring-cap" x="60" y="74" text-anchor="middle">cleared</text>
+          </svg>
+          <figcaption class="ring-cap-text" data-slot="ring-note">—</figcaption>
+        </figure>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-chart">
+    <div class="ch-panel">
+      <div class="ch-head">
+        <div>
+          <p class="ch-eyebrow">Over time</p>
+          <h2 class="ch-title" data-slot="title">Approved and needing attention</h2>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="swatch swatch-ok"></span>Approved</span>
+          <span class="legend-item"><span class="swatch swatch-warn"></span>Needs attention</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart" data-slot="chart"></div>
+        <div class="chart-tip" data-slot="tip" hidden></div>
+      </div>
+      <p class="chart-empty" data-slot="empty" hidden>No claims in this period.</p>
+      <details class="chart-data">
+        <summary>See the numbers</summary>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th scope="col">Month</th><th scope="col">Approved</th><th scope="col">Needs attention</th><th scope="col">Claims</th></tr></thead>
+            <tbody data-slot="table"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </template>
+
+  <template id="tpl-bars">
+    <div class="ch-panel">
+      <div class="ch-head">
+        <div>
+          <p class="ch-eyebrow" data-slot="eyebrow">—</p>
+          <h2 class="ch-title" data-slot="title">—</h2>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="swatch swatch-ok"></span>Approved</span>
+          <span class="legend-item"><span class="swatch swatch-warn"></span>Needs attention</span>
+        </div>
+      </div>
+      <div class="rank" data-slot="rank"></div>
+      <p class="chart-empty" data-slot="empty" hidden>Nothing to show for this period.</p>
+    </div>
+  </template>
+
+  <template id="tpl-chase">
+    <div class="ch-panel">
+      <div class="ch-head">
+        <div>
+          <p class="ch-eyebrow">Needs chasing</p>
+          <h2 class="ch-title" data-slot="title">—</h2>
+        </div>
+      </div>
+      <div class="chase" data-slot="list"></div>
+      <p class="chart-empty" data-slot="empty" hidden>Nothing outstanding — every claim in this period cleared the check.</p>
+    </div>
+  </template>
 
   <script src="nav.js"></script>
   <script src="report.js"></script>
