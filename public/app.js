@@ -528,6 +528,16 @@
       );
     }
 
+    // A finished run that decided nothing is not an outcome anybody can act on,
+    // so it goes down the failure path — with the support offer — rather than
+    // being shown as "needs attention".
+    if (typeof report.approved !== 'boolean') {
+      return failWith(
+        'The workflow finished but did not return a decision for this claim. ' +
+        (report.summary ? 'It reported: ' + report.summary : '')
+      );
+    }
+
     var approved = report.approved === true;
     var matched = report.amounts_match === true;
 
@@ -570,11 +580,31 @@
     show('result');
   }
 
+  /* A failed run is a fault in the workflow, not in the receipt, so the failure
+     screen offers the way to report it — same mail as the Settings page, with
+     the workflow id in the subject and what went wrong already in the body. */
+  function offerSupport(detail) {
+    var strip = $('support-strip');
+    if (!strip || !window.loadSupport) return;
+
+    window.loadSupport().then(function (data) {
+      var mail = window.supportMailto ? window.supportMailto(data, detail) : null;
+      if (!mail) return;                 // no support address configured
+      $('support-btn').href = mail.href;
+      $('support-blurb').textContent =
+        'This is a problem with the workflow, not with your receipt. The mail opens ' +
+        'with the workflow ID as the subject and the details already filled in.';
+      strip.hidden = false;
+    });
+  }
+
   function failWith(message) {
     if (pollTimer) clearTimeout(pollTimer);
     submitBtn.disabled = false;
     $('error-summary').textContent = message;
+    $('support-strip').hidden = true;
     show('error');
+    offerSupport(message);
   }
 
   /* ------------------------------ resets ----------------------------- */
@@ -609,12 +639,6 @@
 
   /* ------------------------------ session ---------------------------- */
 
-  $('signout-btn').addEventListener('click', function () {
-    fetch('/api/auth/logout', { method: 'POST' })
-      .then(function () { window.location.href = '/'; })
-      .catch(function () { window.location.href = '/'; });
-  });
-
   /* Nothing renders until we know who this is. A signed-out visitor goes back
      to the welcome page rather than seeing a form they cannot submit. */
   fetch('/api/me')
@@ -627,18 +651,16 @@
       if (isGuest) {
         // No verified identity, so the fields are the person's to fill in, and
         // the history links go away — there is no "mine" to show a guest.
-        $('who').textContent = 'Guest';
         $('identity-fields').hidden = false;
         $('details-sub').textContent = 'Tell us who this claim is for';
-        $('signout-btn').textContent = 'Leave';
-        $('my-claims-link').hidden = true;
         if ($('all-claims-link')) $('all-claims-link').hidden = true;
       } else {
-        $('who').textContent = me.name || me.email;
         $('identity').hidden = false;
         $('id-name').textContent = me.name || '—';
         $('id-email').textContent = me.email || '—';
       }
+
+      if (window.renderNav) window.renderNav(me, 'submit');
 
       document.body.classList.remove('is-loading');
       renderScenarios();

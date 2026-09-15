@@ -39,6 +39,13 @@
   --shadow: 0 1px 2px rgba(15,20,25,.05), 0 10px 28px -16px rgba(15,20,25,.22);
   --logo-filter: none;
 
+  /* Chart series. Validated for both colour-vision deficiency and contrast
+     against the card surface; do not nudge them by eye. Light mode:
+     protan ΔE 8.5, normal ΔE 17.8, both >= 3:1 on white. */
+  --series-ok:   #2d7a4f;
+  --series-warn: #b07d09;
+  --grid:        #e8ecf1;
+
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
@@ -77,6 +84,11 @@
     --focus:  rgba(91,155,213,.24);
     --shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 28px -16px rgba(0,0,0,.75);
     --logo-filter: invert(1);
+
+    /* Dark steps are chosen against the dark surface, not flipped from light. */
+    --series-ok:   #3f9a6d;
+    --series-warn: #b8862b;
+    --grid:        #212b34;
   }
 }
 
@@ -108,6 +120,10 @@
   --focus:  rgba(91,155,213,.24);
   --shadow: 0 1px 2px rgba(0,0,0,.45), 0 10px 28px -16px rgba(0,0,0,.75);
   --logo-filter: invert(1);
+
+  --series-ok:   #3f9a6d;
+  --series-warn: #b8862b;
+  --grid:        #212b34;
 }
 
 * { box-sizing: border-box; }
@@ -594,7 +610,7 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
 
 /* ============================ split view ============================ */
 
-.split { display: flex; min-height: calc(100vh - 46px); }
+.split { display: flex; min-height: 100vh; }
 
 .split-list {
   flex: 1 1 400px; min-width: 0;
@@ -1300,4 +1316,414 @@ body.is-loading .split { visibility: hidden; }
   .set-rows { grid-template-columns: 1fr; }
   .set-rows dt { padding-bottom: 2px; border-bottom: 0; }
   .set-rows dd { text-align: left; padding-top: 2px; }
+}
+
+/* ------------------------------------------------------------------
+   Top-bar tabs
+
+   Every page the person can reach is in the bar, so switching costs one
+   click. Built by nav.js from their roles.
+   ------------------------------------------------------------------ */
+
+.topbar .tabs {
+  padding-left: 14px;
+  margin-left: 6px;
+  border-left: 1px solid var(--chrome-line);
+  flex-wrap: wrap;
+}
+
+.topbar .tab[aria-current="page"] { cursor: default; }
+
+/* ------------------------------------------------------------------
+   Claims list — running total
+
+   The total sits ahead of the attention count because it answers the
+   first question a manager has of a filtered list: how much is this.
+   ------------------------------------------------------------------ */
+
+.list-count .pill-sum {
+  color: var(--ink-2);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .02em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar .tabs {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--chrome-line);
+    padding-top: 10px;
+  }
+  .topbar-right { margin-left: auto; }
+  .list-count { flex-wrap: wrap; row-gap: 4px; }
+}
+
+/* ==================================================================
+   Side navigation
+
+   A collapsed icon rail by default, expanding to labels on click.
+   The rail is fixed; .app-main is inset by its width so page content
+   never slides under it.
+   ================================================================== */
+
+.side {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 9px;
+  background: var(--chrome-bg);
+  border-right: 1px solid var(--chrome-line);
+  transition: width .18s ease;
+  overflow: hidden;
+}
+
+body.side-open .side { width: 216px; }
+
+.app-main {
+  min-height: 100vh;
+  margin-left: 58px;
+  transition: margin-left .18s ease;
+}
+
+body.side-open .app-main { margin-left: 216px; }
+
+.side-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin-bottom: 8px;
+}
+
+.side-toggle {
+  flex: none;
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--chrome-ink-2);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.side-toggle:hover { background: var(--sunken); color: var(--chrome-ink); }
+.side-toggle svg { width: 19px; height: 19px; }
+
+/* The wordmark is wide; it only earns its place once the rail is open. */
+.side-brand { display: none; min-width: 0; }
+body.side-open .side-brand { display: block; }
+.side-logo { height: 17px; width: auto; display: block; filter: var(--logo-filter); }
+
+.side-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--chrome-ink-2);
+  background: transparent;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.side-link:hover { background: var(--sunken); color: var(--chrome-ink); }
+
+.side-link.is-current {
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: default;
+}
+
+.side-icon { width: 19px; height: 19px; flex: none; }
+
+/* Labels are present in the DOM for screen readers even while collapsed;
+   they are clipped rather than removed so the rail can animate open. */
+.side-label {
+  opacity: 0;
+  transition: opacity .12s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.side-open .side-label { opacity: 1; }
+
+.side-foot {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--chrome-line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-who {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--chrome-ink-2);
+  min-width: 0;
+}
+
+.side-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok-ink);
+  flex: none;
+  margin: 0 6px;
+}
+
+.side-name { font-weight: 500; }
+
+body.is-loading .side { visibility: hidden; }
+
+@media (max-width: 720px) {
+  .side { width: 52px; }
+  .app-main { margin-left: 52px; }
+  /* Open, the rail floats over the page rather than squeezing it. */
+  body.side-open .app-main { margin-left: 52px; }
+  body.side-open .side { box-shadow: 0 0 0 100vmax rgba(15,20,25,.32); }
+}
+
+/* ==================================================================
+   Centred stage — progress and failure
+
+   Neither screen is a form, so they sit in the middle of the page
+   rather than hanging from the top-left like one.
+   ================================================================== */
+
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(62vh, 540px);
+  padding-block: 8px;
+}
+
+.stage > .card {
+  width: 100%;
+  max-width: 460px;
+}
+
+.status-ring {
+  width: 64px; height: 64px;
+  margin: 4px auto 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+}
+
+.card-status .spinner { width: 26px; height: 26px; margin: 0; }
+.card-status h2 { margin-top: 20px; }
+
+/* The support offer on a failed run. */
+.support-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 20px -22px -22px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--line);
+  background: var(--sunken);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+
+.support-text { min-width: 0; }
+.support-text h3 { margin: 0 0 3px; font-size: 13.5px; font-weight: 600; }
+.support-text p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-3); }
+
+/* ==================================================================
+   Report
+   ================================================================== */
+
+.rep-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.rep-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.rep-field-end { margin-left: auto; }
+
+.rep-field label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.rep-field select, .rep-field input {
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  min-width: 150px;
+}
+
+.rep-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tile { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; }
+
+.tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.tile-value {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tile-ok   { color: var(--series-ok); }
+.tile-warn { color: var(--series-warn); }
+
+.tile-sub { font-size: 12px; color: var(--ink-3); }
+
+.chart-card { padding: 20px 22px; }
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.swatch {
+  width: 10px; height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.swatch-ok   { background: var(--series-ok); }
+.swatch-warn { background: var(--series-warn); }
+
+.chart-wrap { position: relative; }
+.chart svg { display: block; overflow: visible; }
+
+.bar-approved  { fill: var(--series-ok); }
+.bar-attention { fill: var(--series-warn); }
+.bar { transition: opacity .12s ease; }
+.chart-wrap:hover .bar { opacity: .55; }
+.chart-wrap .bar:hover { opacity: 1; }
+
+.grid { stroke: var(--grid); stroke-width: 1; }
+.grid-base { stroke: var(--line-strong); }
+
+.axis-label {
+  fill: var(--ink-4);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+}
+
+.chart-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 150px;
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+}
+
+.tip-head { font-weight: 600; margin-bottom: 5px; }
+.tip-line { display: flex; align-items: center; gap: 7px; }
+.tip-series { color: var(--ink-3); }
+.tip-value {
+  margin-left: auto;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+}
+.tip-foot { margin-top: 4px; font-size: 11.5px; color: var(--ink-4); }
+
+.chart-empty { margin: 40px 0; text-align: center; color: var(--ink-3); }
+
+.chart-data { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.chart-data summary { cursor: pointer; font-size: 13px; color: var(--ink-3); }
+.chart-data summary:hover { color: var(--ink); }
+
+.table-scroll { overflow-x: auto; margin-top: 12px; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.data-table th, .data-table td {
+  text-align: left;
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.data-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.data-table tbody th { font-weight: 500; }
+
+.data-table .num {
+  text-align: right;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@media (max-width: 720px) {
+  .rep-field-end { margin-left: 0; }
+  .rep-field { flex: 1 1 150px; }
+  .rep-field select, .rep-field input { min-width: 0; width: 100%; }
 }

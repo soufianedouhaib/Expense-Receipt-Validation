@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Report — Expense Receipt Validation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="is-loading">
+
+  <aside class="side" id="side"></aside>
+
+  <div class="app-main">
+  <main class="shell shell-wide">
+
+    <div class="intro">
+      <h1>Report</h1>
+      <p id="report-lede">What has been claimed, and how much of it cleared the amount check.</p>
+    </div>
+
+    <p class="page-error" id="page-error" hidden></p>
+
+    <!-- ------------------------- controls ------------------------- -->
+    <div class="card rep-controls">
+      <div class="rep-field" id="scope-wrap" hidden>
+        <label for="rep-scope">Claims</label>
+        <select id="rep-scope">
+          <option value="team">My team</option>
+          <option value="all">Everyone</option>
+        </select>
+      </div>
+
+      <div class="rep-field">
+        <label for="rep-period">Period</label>
+        <select id="rep-period">
+          <option value="last-6">Last 6 months</option>
+          <option value="last-12">Last 12 months</option>
+          <option value="ytd">This year</option>
+          <option value="month">A single month…</option>
+          <option value="custom">Custom range…</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+
+      <div class="rep-field" id="month-wrap" hidden>
+        <label for="rep-month">Month</label>
+        <input type="month" id="rep-month">
+      </div>
+
+      <div class="rep-field" id="from-wrap" hidden>
+        <label for="rep-from">From</label>
+        <input type="date" id="rep-from">
+      </div>
+
+      <div class="rep-field" id="to-wrap" hidden>
+        <label for="rep-to">To</label>
+        <input type="date" id="rep-to">
+      </div>
+
+      <div class="rep-field rep-field-end">
+        <label for="rep-currency">Currency</label>
+        <select id="rep-currency"></select>
+      </div>
+    </div>
+
+    <!-- ------------------------- headline ------------------------- -->
+    <div class="rep-tiles">
+      <div class="card tile">
+        <span class="tile-label">Approved</span>
+        <span class="tile-value tile-ok" id="t-approved">—</span>
+        <span class="tile-sub" id="t-approved-sub">—</span>
+      </div>
+      <div class="card tile">
+        <span class="tile-label">Needs attention</span>
+        <span class="tile-value tile-warn" id="t-attention">—</span>
+        <span class="tile-sub" id="t-attention-sub">—</span>
+      </div>
+      <div class="card tile">
+        <span class="tile-label">Approved share</span>
+        <span class="tile-value" id="t-rate">—</span>
+        <span class="tile-sub" id="t-rate-sub">by value</span>
+      </div>
+      <div class="card tile">
+        <span class="tile-label">Claims</span>
+        <span class="tile-value" id="t-count">—</span>
+        <span class="tile-sub" id="t-count-sub">—</span>
+      </div>
+    </div>
+
+    <!-- --------------------------- chart -------------------------- -->
+    <section class="card chart-card" aria-labelledby="h-chart">
+      <header class="chart-head">
+        <div>
+          <h2 class="card-title" id="h-chart">Amount approved and needing attention</h2>
+          <p class="card-sub" id="chart-sub">By month</p>
+        </div>
+        <div class="legend" id="legend">
+          <span class="legend-item"><span class="swatch swatch-ok" aria-hidden="true"></span>Approved</span>
+          <span class="legend-item"><span class="swatch swatch-warn" aria-hidden="true"></span>Needs attention</span>
+        </div>
+      </header>
+
+      <div class="chart-wrap">
+        <div id="chart" class="chart" role="img" aria-labelledby="h-chart" aria-describedby="chart-table"></div>
+        <div class="chart-tip" id="chart-tip" hidden></div>
+      </div>
+
+      <p class="chart-empty" id="chart-empty" hidden>No claims in this period.</p>
+
+      <details class="chart-data">
+        <summary>See the numbers</summary>
+        <div class="table-scroll">
+          <table class="data-table" id="chart-table">
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Approved</th>
+                <th scope="col">Needs attention</th>
+                <th scope="col">Claims</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+  </main>
+
+  <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
+  </div>
+
+  <script src="nav.js"></script>
+  <script src="report.js"></script>
+</body>
+</html>

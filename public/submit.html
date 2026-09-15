@@ -11,17 +11,9 @@
 </head>
 <body class="is-loading">
 
-  <header class="topbar">
-    <img class="logo" src="logo.png" alt="Applied AI" width="846" height="140">
-    <span class="topbar-title">Submit a claim</span>
-    <div class="topbar-right">
-      <span class="session"><span class="session-dot" aria-hidden="true"></span><span id="who"></span></span>
-      <a class="btn btn-chrome" href="workspace.html?scope=mine" id="my-claims-link">My claims</a>
-      <a class="btn btn-chrome" href="/">Switch</a>
-      <button type="button" class="btn btn-chrome" id="signout-btn">Sign out</button>
-    </div>
-  </header>
+  <aside class="side" id="side"></aside>
 
+  <div class="app-main">
   <main class="shell shell-wide">
 
     <!-- ===================== FORM ===================== -->
@@ -216,17 +208,21 @@
 
     <!-- ===================== PROGRESS ===================== -->
     <section id="view-progress" class="view" hidden>
-      <div class="card card-status">
-        <div class="spinner" aria-hidden="true"></div>
-        <h2>Checking your receipt</h2>
-        <p class="status-line" id="status-line">Uploading…</p>
-        <ol class="steps" id="steps">
-          <li data-step="upload">Receipt uploaded</li>
-          <li data-step="read">Reading the receipt</li>
-          <li data-step="check">Comparing amounts</li>
-          <li data-step="decide">Building the decision</li>
-        </ol>
-        <p class="hint centered">This usually takes under a minute. You can leave this page open.</p>
+      <div class="stage">
+        <div class="card card-status">
+          <div class="status-ring" aria-hidden="true">
+            <div class="spinner"></div>
+          </div>
+          <h2>Checking your receipt</h2>
+          <p class="status-line" id="status-line">Uploading…</p>
+          <ol class="steps" id="steps">
+            <li data-step="upload">Receipt uploaded</li>
+            <li data-step="read">Reading the receipt</li>
+            <li data-step="check">Comparing amounts</li>
+            <li data-step="decide">Building the decision</li>
+          </ol>
+          <p class="hint centered">This usually takes under a minute. You can leave this page open.</p>
+        </div>
       </div>
     </section>
 
@@ -277,15 +273,28 @@
 
     <!-- ===================== FAILURE ===================== -->
     <section id="view-error" class="view" hidden>
-      <div class="card">
-        <div class="verdict">
-          <span class="badge badge-error">Not completed</span>
-          <h2>We couldn't finish that check</h2>
-        </div>
-        <p class="summary" id="error-summary"></p>
-        <div class="actions actions-split">
-          <button type="button" class="btn btn-ghost" id="back-to-form">Back to form</button>
-          <button type="button" class="btn btn-primary" id="retry">Try again</button>
+      <div class="stage">
+        <div class="card">
+          <div class="verdict">
+            <span class="badge badge-error">Not completed</span>
+            <h2>We couldn't finish that check</h2>
+          </div>
+          <p class="summary" id="error-summary"></p>
+
+          <div class="actions actions-split">
+            <button type="button" class="btn btn-ghost" id="back-to-form">Back to form</button>
+            <button type="button" class="btn btn-primary" id="retry">Try again</button>
+          </div>
+
+          <!-- Nothing here is the person's fault, so the way to report it is on
+               the screen rather than somewhere they have to go looking. -->
+          <div class="support-strip" id="support-strip" hidden>
+            <div class="support-text">
+              <h3>Still not working?</h3>
+              <p id="support-blurb">This is a problem with the workflow, not with your receipt.</p>
+            </div>
+            <a class="btn btn-ghost btn-sm" id="support-btn" href="#">Contact Opus customer support</a>
+          </div>
         </div>
       </div>
     </section>
@@ -294,6 +303,10 @@
 
   <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
 
+  </div>
+
+  <script src="nav.js"></script>
+  <script src="support.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

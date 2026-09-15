@@ -113,12 +113,6 @@
     el.hidden = false;
   }
 
-  $('signout-btn').addEventListener('click', function () {
-    fetch('/api/auth/logout', { method: 'POST' })
-      .then(function () { window.location.href = '/'; })
-      .catch(function () { window.location.href = '/'; });
-  });
-
   /* ------------------------------ formatting ---------------------------- */
 
   function fmtDate(iso) {
@@ -152,17 +146,105 @@
 
   /* -------------------------------- list -------------------------------- */
 
+  function personKey(row) {
+    return (row.employeeEmail || row.employeeName || '').trim().toLowerCase();
+  }
+
+  function personLabel(row) {
+    return row.employeeName || row.employeeEmail || 'Unnamed';
+  }
+
+  /* The dropdown is built from the claims actually loaded, so it never offers a
+     name with nothing behind it. A selection that disappears — the person has
+     no claims in the new period — falls back to everyone rather than silently
+     showing an empty list. */
+  function refreshPeopleFilter() {
+    var wrap = $('person-wrap');
+    var sel = $('filter-person');
+    if (!wrap || !sel) return;
+
+    // On "my claims" every row is you, so the filter would be a no-op.
+    if (scope === 'mine') { wrap.hidden = true; sel.value = 'all'; return; }
+
+    var seen = {};
+    var people = [];
+    rows.forEach(function (row) {
+      var key = personKey(row);
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      people.push({ key: key, label: personLabel(row) });
+    });
+    people.sort(function (a, b) { return a.label.localeCompare(b.label); });
+
+    var previous = sel.value;
+    sel.innerHTML = '';
+
+    var all = document.createElement('option');
+    all.value = 'all';
+    all.textContent = people.length ? 'Everyone (' + people.length + ')' : 'Everyone';
+    sel.appendChild(all);
+
+    people.forEach(function (person) {
+      var opt = document.createElement('option');
+      opt.value = person.key;
+      opt.textContent = person.label;
+      sel.appendChild(opt);
+    });
+
+    sel.value = seen[previous] ? previous : 'all';
+    wrap.hidden = people.length < 2;
+  }
+
   function visibleRows() {
     var q = $('search').value.trim().toLowerCase();
     var status = $('filter-status').value;
+    var person = $('filter-person') ? $('filter-person').value : 'all';
     var win = currentWindow();
 
     return rows.filter(function (row) {
       if (!withinWindow(row, win)) return false;
       if (status !== 'all' && outcomeOf(row).key !== status) return false;
+      if (person !== 'all' && personKey(row) !== person) return false;
       if (!q) return true;
       return [row.employeeName, row.employeeEmail, row.receiptType, row.managerName]
         .join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  /* Claims are summed per currency and never converted — there is no rate in
+     this app, and a total that quietly mixed AED with USD would be worse than
+     no total at all. */
+  function sumByCurrency(list) {
+    var totals = {};
+    var order = [];
+
+    list.forEach(function (row) {
+      var n = parseFloat(String(row.amount != null ? row.amount : '').replace(/,/g, ''));
+      if (isNaN(n)) {
+        // Older records predate the split fields; fall back to the printed string.
+        var m = String(row.submittedTotal || '').match(/^\s*([\d.,]+)\s*([A-Za-z]{3})?/);
+        if (!m) return;
+        n = parseFloat(m[1].replace(/,/g, ''));
+        if (isNaN(n)) return;
+        var fallback = (m[2] || '').toUpperCase() || '—';
+        if (!(fallback in totals)) { totals[fallback] = 0; order.push(fallback); }
+        totals[fallback] += n;
+        return;
+      }
+      var cur = (row.currency || '').toUpperCase() || '—';
+      if (!(cur in totals)) { totals[cur] = 0; order.push(cur); }
+      totals[cur] += n;
+    });
+
+    return order.map(function (cur) {
+      var v = totals[cur];
+      // Always two decimals: a total is money, and "1,452" beside "3,426.50"
+      // reads like a different kind of number.
+      var text = v.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return text + (cur === '—' ? '' : ' ' + cur);
     });
   }
 
@@ -200,7 +282,10 @@
       ? 'No claims match these filters.'
       : (EMPTY[scope] || 'Nothing here yet.');
 
-    var attention = rows.filter(function (r) { return outcomeOf(r).key === 'attention'; }).length;
+    /* Both figures describe what is on screen, not the whole history — the
+       point of choosing a period is to get that period's numbers. */
+    var attention = list.filter(function (r) { return outcomeOf(r).key === 'attention'; }).length;
+    var sums = sumByCurrency(list);
     updateExport();
 
     $('count-total').textContent = rows.length
@@ -208,7 +293,12 @@
           ? rows.length + ' claims'
           : list.length + ' of ' + rows.length + ' claims')
       : (EMPTY[scope] || 'Nothing here yet');
+
+    $('count-sum').textContent = sums.join('  ·  ');
+    $('count-sum').hidden = sums.length === 0;
+
     $('count-attention').textContent = attention ? attention + ' need attention' : '';
+    $('count-attention').hidden = attention === 0;
   }
 
   function loadList(quiet) {
@@ -218,8 +308,13 @@
     return api('/api/claims?scope=' + encodeURIComponent(scope))
       .then(function (data) {
         rows = data.submissions || [];
-        scope = data.scope || scope;
-        $('mode-title').textContent = TITLES[scope] || 'Claims';
+        // The server has the final word on scope, so if it narrowed the request
+        // the tab bar has to follow it rather than the URL we asked with.
+        if (data.scope && data.scope !== scope) {
+          scope = data.scope;
+          if (window.renderNav) window.renderNav(me, scope);
+        }
+        refreshPeopleFilter();
         if (!selectedId && rows.length) selectedId = rows[0].caseId;
         renderList();
         if (selectedId) renderDetail(selectedId);
@@ -253,6 +348,7 @@
 
   $('search').addEventListener('input', renderList);
   $('filter-status').addEventListener('change', renderList);
+  if ($('filter-person')) $('filter-person').addEventListener('change', renderList);
   $('filter-period').addEventListener('change', periodChanged);
   $('date-from').addEventListener('change', renderList);
   $('date-to').addEventListener('change', renderList);
@@ -382,14 +478,8 @@
       if (scope === 'all' && session.roles.indexOf('admin') === -1) scope = 'mine';
 
       me = session;
-      $('who').textContent = session.name || session.email;
-      // Only offer "Switch role" to people who actually hold more than one.
-      $('mode-title').textContent = TITLES[scope] || 'Claims';
+      if (window.renderNav) window.renderNav(session, scope);
       if (scope === 'mine') $('search').placeholder = 'Search category or manager';
-      $('switch-btn').hidden = false;
-      if ($('settings-link') && session.roles.indexOf('admin') !== -1) {
-        $('settings-link').hidden = false;
-      }
       document.body.classList.remove('is-loading');
       loadList();
     })

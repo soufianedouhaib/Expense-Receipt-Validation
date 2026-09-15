@@ -11,18 +11,9 @@
 </head>
 <body class="is-loading">
 
-  <header class="topbar">
-    <img class="logo" src="logo.png" alt="Applied AI" width="846" height="140">
-    <span class="topbar-title" id="mode-title">Review</span>
-    <div class="topbar-right">
-      <span class="session"><span class="session-dot" aria-hidden="true"></span><span id="who"></span></span>
-      <a class="btn btn-chrome" href="submit.html">New claim</a>
-      <a class="btn btn-chrome" href="settings.html" id="settings-link" hidden>Settings</a>
-      <a class="btn btn-chrome" href="/" id="switch-btn">Switch</a>
-      <button type="button" class="btn btn-chrome" id="signout-btn">Sign out</button>
-    </div>
-  </header>
+  <aside class="side" id="side"></aside>
 
+  <div class="app-main">
   <p class="page-error" id="page-error" hidden></p>
 
   <!-- ===================== WORKSPACE ===================== -->
@@ -41,6 +32,11 @@
               <option value="attention">Needs attention</option>
               <option value="running">Running</option>
               <option value="failed">Did not complete</option>
+            </select>
+          </div>
+          <div class="f2" id="person-wrap" hidden>
+            <select id="filter-person" aria-label="Filter by employee">
+              <option value="all">Everyone</option>
             </select>
           </div>
         </div>
@@ -73,6 +69,7 @@
         <div class="list-count">
           <span id="count-total">Loading…</span>
           <span class="count-right">
+            <span class="pill pill-sum" id="count-sum" hidden></span>
             <span class="pill" id="count-attention"></span>
             <a class="count-export" id="export-link" href="#">Export CSV</a>
           </span>
@@ -89,6 +86,9 @@
     </div>
   </section>
 
+  </div>
+
+  <script src="nav.js"></script>
   <script src="workspace.js"></script>
 </body>
 </html>

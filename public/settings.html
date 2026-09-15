@@ -11,17 +11,9 @@
 </head>
 <body class="is-loading">
 
-  <header class="topbar">
-    <img class="logo" src="logo.png" alt="Applied AI" width="846" height="140">
-    <span class="topbar-title">Settings</span>
-    <div class="topbar-right">
-      <span class="session"><span class="session-dot" aria-hidden="true"></span><span id="who"></span></span>
-      <a class="btn btn-chrome" href="workspace.html?scope=all">All claims</a>
-      <a class="btn btn-chrome" href="/">Switch</a>
-      <button type="button" class="btn btn-chrome" id="signout-btn">Sign out</button>
-    </div>
-  </header>
+  <aside class="side" id="side"></aside>
 
+  <div class="app-main">
   <main class="shell">
 
     <nav class="crumbs" aria-label="Breadcrumb">
@@ -32,7 +24,7 @@
 
     <div class="intro">
       <h1>Settings</h1>
-      <p>Workflow connection details for this instance.</p>
+      <p>Workflow connection details for this instance, and how to reach Opus support.</p>
     </div>
 
     <p class="page-error" id="page-error" hidden></p>
@@ -66,6 +58,10 @@
 
   <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
 
+  </div>
+
+  <script src="nav.js"></script>
+  <script src="support.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

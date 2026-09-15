@@ -38,14 +38,20 @@
 
   /* ---------------------------- support link --------------------------- */
 
-  /* The subject is the workflow id, always — that is the one string Opus
-     support can use to find the workflow being asked about. */
+  /* The subject always carries the workflow id — that is the one string Opus
+     support can use to find the workflow being asked about — but as a readable
+     line rather than a bare UUID, so the mail reads like a support request in
+     an inbox instead of a reference number. */
   function wireSupport(data) {
     var id = data.workflowId || 'unknown workflow';
+    var subject = 'Error within the workflow ID: ' + id;
 
     var body = [
       'Hello Opus support,',
       '',
+      'We are seeing a problem with the Expense Receipt Validation workflow.',
+      '',
+      'What happened:',
       '',
       '',
       '— Instance details —',
@@ -55,7 +61,7 @@
     ].join('\n');
 
     var href = 'mailto:' + encodeURIComponent(data.supportEmail) +
-               '?subject=' + encodeURIComponent(id) +
+               '?subject=' + encodeURIComponent(subject) +
                '&body=' + encodeURIComponent(body);
 
     var btn = $('support-btn');
@@ -63,30 +69,26 @@
 
     $('support-hint').textContent =
       'Opens your mail app to ' + data.supportEmail +
-      ' with the workflow ID as the subject.';
+      ' with the subject "' + subject + '".';
   }
 
   /* -------------------------------- boot ------------------------------- */
-
-  $('signout-btn').addEventListener('click', function () {
-    fetch('/api/auth/logout', { method: 'POST' })
-      .then(function () { window.location.href = '/'; })
-      .catch(function () { window.location.href = '/'; });
-  });
 
   fetch('/api/me')
     .then(function (r) { return r.json(); })
     .then(function (me) {
       if (!me.signedIn) { window.location.href = '/'; return null; }
-      if (me.roles.indexOf('admin') === -1) {
+      // Managers need this page too — it is how they reach Opus support when a
+      // run fails for someone on their team.
+      if (me.roles.indexOf('admin') === -1 && me.roles.indexOf('manager') === -1) {
         // Not an error the person can act on — send them somewhere they belong.
         window.location.href = '/';
         return null;
       }
-      $('who').textContent = me.name || me.email;
+      if (window.renderNav) window.renderNav(me, 'settings');
       return fetch('/api/settings').then(function (r) {
         if (r.status === 403 || r.status === 401) {
-          throw new Error('This page is for administrators.');
+          throw new Error('This page is for managers and administrators.');
         }
         if (!r.ok) throw new Error('Could not load the settings (' + r.status + ').');
         return r.json();
