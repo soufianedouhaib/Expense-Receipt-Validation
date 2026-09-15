@@ -1,8 +1,9 @@
 /* Shared side navigation.
 
-   A collapsed icon rail by default; clicking the toggle expands it to show the
-   labels, and that choice is remembered on this device. Every page the signed-in
-   person may open is a row, so moving between them is one click. The list is
+   A collapsed icon rail. Clicking the toggle expands it over the page, behind a
+   blurred scrim; clicking off it, pressing Escape, or clicking the toggle again
+   puts it back. Every page the signed-in person may open is a row, so moving
+   between them is one click. The list is
    built from their roles: a manager or admin also gets Report and Settings, and
    a guest — who has no claim history at all — sees only the claim form.
 
@@ -12,8 +13,6 @@
 
 (function () {
   'use strict';
-
-  var STORE_KEY = 'aaico.expense.nav';
 
   /* 24×24 stroke paths, drawn at 1.6. */
   var ICONS = {
@@ -62,17 +61,27 @@
 
   /* ---------------------------- open / closed --------------------------- */
 
-  function isOpen() {
-    try { return localStorage.getItem(STORE_KEY) === 'open'; } catch (e) { return false; }
-  }
-
+  /* Deliberately not remembered between pages. An expanded rail dims and blurs
+     everything behind it, and no page should arrive already looking like that —
+     it is a menu you open, glance at and close, not a layout mode. */
   function setOpen(open, toggle) {
     document.body.classList.toggle('side-open', open);
     if (toggle) {
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       toggle.setAttribute('aria-label', open ? 'Collapse menu' : 'Expand menu');
     }
-    try { localStorage.setItem(STORE_KEY, open ? 'open' : 'closed'); } catch (e) {}
+  }
+
+  /* The scrim is what blurs the page behind an open rail. It is also the way
+     most people will close it — clicking off a menu is the usual reflex. */
+  function scrim(toggle) {
+    var existing = document.querySelector('.side-scrim');
+    if (existing) return existing;
+
+    var s = el('div', 'side-scrim');
+    s.addEventListener('click', function () { setOpen(false, toggle); });
+    document.body.appendChild(s);
+    return s;
   }
 
   /* -------------------------------- build ------------------------------- */
@@ -93,7 +102,7 @@
     top.appendChild(toggle);
 
     var brand = el('a', 'side-brand');
-    brand.href = '/';
+    brand.href = 'submit.html';
     var logo = document.createElement('img');
     logo.src = 'logo.png';
     logo.alt = 'Applied AI';
@@ -152,9 +161,18 @@
     host.appendChild(foot);
 
     /* wiring */
+    scrim(toggle);
+
     toggle.addEventListener('click', function () {
       setOpen(!document.body.classList.contains('side-open'), toggle);
     });
-    setOpen(isOpen(), toggle);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.body.classList.contains('side-open')) {
+        setOpen(false, toggle);
+      }
+    });
+
+    setOpen(false, toggle);
   };
 })();
