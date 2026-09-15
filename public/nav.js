@@ -1,9 +1,10 @@
 /* Shared side navigation.
 
-   A collapsed icon rail. Clicking the toggle expands it over the page, behind a
-   blurred scrim; clicking off it, pressing Escape, or clicking the toggle again
-   puts it back. Every page the signed-in person may open is a row, so moving
-   between them is one click. The list is
+   A collapsed icon rail that expands over the page the moment the pointer
+   reaches it, behind a blurred scrim, and folds back when the pointer leaves.
+   The toggle pins it open for anyone without a pointer to hover with — touch,
+   or a keyboard — and Escape or a click off it puts everything back. Every page
+   the signed-in person may open is a row, so moving between them is one click. The list is
    built from their roles: a manager or admin also gets Report and Settings, and
    a guest — who has no claim history at all — sees only the claim form.
 
@@ -63,13 +64,29 @@
 
   /* Deliberately not remembered between pages. An expanded rail dims and blurs
      everything behind it, and no page should arrive already looking like that —
-     it is a menu you open, glance at and close, not a layout mode. */
+     it is a menu you glance at, not a layout mode. */
+  var pinned = false;
+  var closeTimer = null;
+
   function setOpen(open, toggle) {
     document.body.classList.toggle('side-open', open);
     if (toggle) {
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       toggle.setAttribute('aria-label', open ? 'Collapse menu' : 'Expand menu');
     }
+  }
+
+  /* Opening is immediate; closing waits a moment, so crossing a corner of the
+     rail on the way somewhere else does not make it flap. */
+  function hoverOpen(toggle) {
+    clearTimeout(closeTimer);
+    setOpen(true, toggle);
+  }
+
+  function hoverClose(toggle) {
+    if (pinned) return;
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(function () { setOpen(false, toggle); }, 140);
   }
 
   /* The scrim is what blurs the page behind an open rail. It is also the way
@@ -79,7 +96,11 @@
     if (existing) return existing;
 
     var s = el('div', 'side-scrim');
-    s.addEventListener('click', function () { setOpen(false, toggle); });
+    s.addEventListener('click', function () {
+      pinned = false;
+      toggle.setAttribute('aria-pressed', 'false');
+      setOpen(false, toggle);
+    });
     document.body.appendChild(s);
     return s;
   }
@@ -163,12 +184,29 @@
     /* wiring */
     scrim(toggle);
 
+    host.addEventListener('mouseenter', function () { hoverOpen(toggle); });
+    host.addEventListener('mouseleave', function () { hoverClose(toggle); });
+
+    // Keyboard users get the same thing by tabbing into it.
+    host.addEventListener('focusin', function () { hoverOpen(toggle); });
+    host.addEventListener('focusout', function (e) {
+      if (!host.contains(e.relatedTarget)) hoverClose(toggle);
+    });
+
+    /* The toggle pins it, for touch screens and for anyone who wants it to
+       stay put while they read down the list. */
+    toggle.setAttribute('aria-pressed', 'false');
     toggle.addEventListener('click', function () {
-      setOpen(!document.body.classList.contains('side-open'), toggle);
+      pinned = !pinned;
+      toggle.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+      if (pinned) hoverOpen(toggle);
+      else setOpen(false, toggle);
     });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && document.body.classList.contains('side-open')) {
+        pinned = false;
+        toggle.setAttribute('aria-pressed', 'false');
         setOpen(false, toggle);
       }
     });

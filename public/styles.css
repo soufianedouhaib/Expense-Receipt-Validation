@@ -46,6 +46,16 @@
   --series-warn: #b07d09;
   --grid:        #e8ecf1;
 
+  /* The side rail is painted, not chrome, so it carries its own set. White on
+     this blue is 8.3:1, and every muted step below stays readable on it. */
+  --rail-bg:     #1d4e8f;
+  --rail-ink:    #ffffff;
+  --rail-ink-2:  rgba(255,255,255,.74);
+  --rail-line:   rgba(255,255,255,.18);
+  --rail-hover:  rgba(255,255,255,.12);
+  --rail-active: rgba(255,255,255,.20);
+  --rail-dot:    #74e0a6;
+
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
@@ -89,6 +99,15 @@
     --series-ok:   #3f9a6d;
     --series-warn: #b8862b;
     --grid:        #212b34;
+
+    /* Deeper, so the rail sits back from a dark page instead of glowing. */
+    --rail-bg:     #15355c;
+    --rail-ink:    #eef3f8;
+    --rail-ink-2:  rgba(238,243,248,.72);
+    --rail-line:   rgba(238,243,248,.16);
+    --rail-hover:  rgba(238,243,248,.10);
+    --rail-active: rgba(238,243,248,.18);
+    --rail-dot:    #74e0a6;
   }
 }
 
@@ -124,6 +143,14 @@
   --series-ok:   #3f9a6d;
   --series-warn: #b8862b;
   --grid:        #212b34;
+
+  --rail-bg:     #15355c;
+  --rail-ink:    #eef3f8;
+  --rail-ink-2:  rgba(238,243,248,.72);
+  --rail-line:   rgba(238,243,248,.16);
+  --rail-hover:  rgba(238,243,248,.10);
+  --rail-active: rgba(238,243,248,.18);
+  --rail-dot:    #74e0a6;
 }
 
 * { box-sizing: border-box; }
@@ -1384,8 +1411,8 @@ body.is-loading .split { visibility: hidden; }
   flex-direction: column;
   gap: 4px;
   padding: 10px 9px;
-  background: var(--chrome-bg);
-  border-right: 1px solid var(--chrome-line);
+  background: var(--rail-bg);
+  color: var(--rail-ink-2);
   transition: width .18s ease;
   overflow: hidden;
 }
@@ -1436,18 +1463,22 @@ body.side-open .side-scrim { opacity: 1; pointer-events: auto; }
   display: inline-flex; align-items: center; justify-content: center;
   border: 0; border-radius: var(--r-sm);
   background: transparent;
-  color: var(--chrome-ink-2);
+  color: var(--rail-ink-2);
   cursor: pointer;
   transition: background .15s ease, color .15s ease;
 }
 
-.side-toggle:hover { background: var(--sunken); color: var(--chrome-ink); }
+.side-toggle:hover { background: var(--rail-hover); color: var(--rail-ink); }
 .side-toggle svg { width: 19px; height: 19px; }
+
+/* Pinned open, the toggle reads as pressed. */
+.side-toggle[aria-pressed="true"] { background: var(--rail-active); color: var(--rail-ink); }
 
 /* The wordmark is wide; it only earns its place once the rail is open. */
 .side-brand { display: none; min-width: 0; }
 body.side-open .side-brand { display: block; }
-.side-logo { height: 17px; width: auto; display: block; filter: var(--logo-filter); }
+/* Forced white in both themes — the rail is blue either way. */
+.side-logo { height: 17px; width: auto; display: block; filter: brightness(0) invert(1); }
 
 .side-nav { display: flex; flex-direction: column; gap: 2px; }
 
@@ -1465,17 +1496,20 @@ body.side-open .side-brand { display: block; }
   text-align: left;
   text-decoration: none;
   white-space: nowrap;
-  color: var(--chrome-ink-2);
+  color: var(--rail-ink-2);
   background: transparent;
   cursor: pointer;
   transition: background .15s ease, color .15s ease;
 }
 
-.side-link:hover { background: var(--sunken); color: var(--chrome-ink); }
+.side-link:hover { background: var(--rail-hover); color: var(--rail-ink); }
 
+/* The rail is one colour, so the current row is marked by a lighter pill
+   rather than by hue. */
 .side-link.is-current {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--rail-active);
+  color: var(--rail-ink);
+  font-weight: 600;
   cursor: default;
 }
 
@@ -1495,7 +1529,7 @@ body.side-open .side-label { opacity: 1; }
 .side-foot {
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid var(--chrome-line);
+  border-top: 1px solid var(--rail-line);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1508,13 +1542,13 @@ body.side-open .side-label { opacity: 1; }
   height: 34px;
   padding: 0 10px;
   font-size: 12px;
-  color: var(--chrome-ink-2);
+  color: var(--rail-ink-2);
   min-width: 0;
 }
 
 .side-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--ok-ink);
+  background: var(--rail-dot);
   flex: none;
   margin: 0 6px;
 }
@@ -1524,7 +1558,7 @@ body.side-open .side-label { opacity: 1; }
 body.is-loading .side { visibility: hidden; }
 
 /* The rail casts a shadow while open, so it reads as sitting above the page. */
-body.side-open .side { box-shadow: 0 0 40px -12px rgba(15, 20, 25, .35); }
+body.side-open .side { box-shadow: 0 0 44px -10px rgba(15, 20, 25, .45); }
 
 @media (max-width: 720px) {
   .side { width: 52px; }
