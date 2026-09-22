@@ -238,6 +238,17 @@
 
         <dl class="facts" id="facts"></dl>
 
+        <!-- How long the run took. Hidden outright when the run was not timed,
+             rather than showing a dash that reads like a measurement of zero. -->
+        <div class="ttd" id="ttd" hidden>
+          <div class="ttd-bar">
+            <span class="ttd-k">Time to decision</span>
+            <span class="ttd-v" id="ttd-total">—</span>
+            <span class="ttd-new">NEW</span>
+          </div>
+          <p class="ttd-break" id="ttd-break"></p>
+        </div>
+
         <div class="compare" id="compare">
           <div class="compare-col">
             <span class="compare-label">You submitted</span>
@@ -307,6 +318,7 @@
 
   <script src="nav.js"></script>
   <script src="support.js"></script>
+  <script src="duration.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

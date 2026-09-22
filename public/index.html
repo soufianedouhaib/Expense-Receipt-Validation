@@ -1,120 +1,81 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>New validation, Account Transfer Validation</title>
-    <link rel="icon" href="/logo.png" />
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <header class="topbar" id="topbar"></header>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expense Receipt Validation — Applied AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="welcome-body">
 
-    <main class="page" id="main" hidden>
-      <div class="page-head">
-        <h1>Validate an account transfer packet</h1>
-        <p>
-          Upload the transfer form and the delivering firm statement as one file. The workflow
-          extracts both documents, checks them against the client record and the contra firm
-          rulebook, and returns an in good order or not in good order decision with the reasons.
-        </p>
-      </div>
+  <main class="welcome">
+    <div class="welcome-card">
 
-      <div class="grid-2">
-        <section class="card">
-          <div class="card-head"><h2>Submitted documents</h2></div>
+      <img class="welcome-logo" src="logo.png" alt="Applied AI" width="846" height="140">
+      <h1 class="welcome-title">Expense Receipt Validation</h1>
 
-          <form id="submit-form">
-            <div
-              class="dropzone"
-              id="dropzone"
-              tabindex="0"
-              role="button"
-              aria-label="Choose a file to validate"
-            >
-              <strong>Drop the packet here, or click to choose</strong>
-              <span>PDF, DOCX, images, CSV, XLSX, TXT, JSON, HTML or XML. Up to 10 MB.</span>
-            </div>
-            <input
-              type="file"
-              id="file-input"
-              hidden
-              accept=".pdf,.docx,.csv,.xls,.xlsx,.txt,.json,.html,.xml,.jpeg,.jpg,.png"
-            />
+      <!-- ============ signed out ============ -->
+      <section id="view-signin" hidden>
+        <p class="welcome-sub">Sign in to file an expense claim or review your team's.</p>
 
-            <div id="file-chip" class="file-chip" hidden style="margin-top: 14px">
-              <span class="name" id="file-name"></span>
-              <span class="size" id="file-size"></span>
-              <button type="button" class="btn btn-quiet btn-small" id="file-clear">Remove</button>
-            </div>
-
-            <label class="field" style="margin-top: 16px">
-              <span>Reference for this run, optional</span>
-              <input type="text" id="title" placeholder="A name you will recognise in the list" />
-            </label>
-
-            <div class="card-sub" style="margin: 18px 0 0" id="samples-lead">
-              No packet to hand? Load one of these samples and run it.
-            </div>
-            <div class="samples" id="samples"></div>
-
-            <div id="resubmit-note" class="notice notice-info" hidden>
-              Resubmitting a corrected packet. Attach the updated file and run it again.
-            </div>
-            <div id="submit-error" class="notice notice-bad" hidden></div>
-
-            <button type="submit" class="btn" id="submit-btn" disabled>Run validation</button>
-          </form>
-
-          <div id="progress" class="stack-sm" hidden style="margin-top: 18px">
-            <div class="progress-wrap">
-              <div class="spinner"></div>
-              <div>
-                <div id="progress-label" style="font-weight: 500">Preparing the upload</div>
-                <div class="card-sub" style="margin: 2px 0 0" id="progress-note">
-                  This usually takes a minute or two.
-                </div>
-              </div>
-            </div>
-            <div class="bar"><i></i></div>
+        <form id="signin-form" class="signin-form" novalidate>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="username"
+                   placeholder="you@demo.aaico.com" required>
           </div>
-        </section>
-
-        <section class="card">
-          <div class="card-head"><h2>What gets checked</h2></div>
-          <div class="pairs">
-            <div class="pair">
-              <span class="k">Consistency</span>
-              <span class="v">Form against the client account record and the delivering firm statement, including name, SSN, registration and account number.</span>
-            </div>
-            <div class="pair">
-              <span class="k">Completeness</span>
-              <span class="v">Signature, signature date, Medallion guarantee where the value requires one, and a transfer election with both a type and a scope.</span>
-            </div>
-            <div class="pair">
-              <span class="k">Contra firm fit</span>
-              <span class="v">The right form and entity for the delivering firm, and an account number in the format that firm uses.</span>
-            </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   autocomplete="current-password" required>
           </div>
-          <p class="card-sub" style="margin: 14px 0 0">
-            Issues are reported with the standard reason codes, NIGO-01 through NIGO-10. The
-            workflow advises, a reviewer decides, and corrections are made by the advisor.
-          </p>
-        </section>
-      </div>
+          <p class="field-error" id="err-signin" hidden></p>
+          <button type="submit" class="btn btn-primary" id="signin-btn">Sign in</button>
+        </form>
 
-      <section class="card" id="recent-card" hidden>
-        <div class="card-head">
-          <h2>Your recent runs</h2>
-          <a class="btn btn-quiet btn-small" href="/history.html">See all</a>
-        </div>
-        <div id="recent-body"></div>
+        <details class="demo-note">
+          <summary>Demo accounts</summary>
+          <p class="demo-hint">Click any account to sign in as that person.</p>
+          <div class="demo-list" id="demo-list"></div>
+          <p class="demo-warning">Demo credentials, shared by everyone with this
+            address. Don't put real expense data through them.</p>
+        </details>
+
+        <div class="or-divider"><span>or</span></div>
+
+        <button type="button" class="guest-card" id="guest-btn">
+          <svg class="role-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 16V4m0 0L8 8m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
+                  stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="guest-text">
+            <span class="guest-title">File a claim without an account</span>
+            <span class="guest-blurb">Fill in your own name, email and details. You won't get claim history.</span>
+          </span>
+        </button>
       </section>
-    </main>
 
-    <footer class="footer" id="footer"></footer>
+      <!-- ============ not configured ============ -->
+      <section id="view-unconfigured" hidden>
+        <p class="welcome-sub">
+          Sign-in is not set up on this deployment yet. Add the Google credentials
+          in Vercel and redeploy — the README has the steps.
+        </p>
+      </section>
 
-    <script src="/common.js"></script>
-    <script src="/app.js"></script>
-  </body>
+      <p class="welcome-error" id="welcome-error" hidden></p>
+
+      <div class="welcome-loading" id="welcome-loading">
+        <div class="spinner" aria-hidden="true"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="welcome.js"></script>
+</body>
 </html>

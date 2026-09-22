@@ -130,6 +130,17 @@
     return (b / 1048576).toFixed(1) + ' MB';
   }
 
+  /* "20.7s (2.9s upload · 17.8s decision)", or nothing at all. facts() drops a
+     pair whose value is falsy, so an untimed claim loses the row entirely. */
+  function timingText(row) {
+    if (!window.fmtDuration) return '';
+    var total = window.fmtDuration(row.totalMs);
+    if (!total) return '';
+    var up = window.fmtDuration(row.uploadMs);
+    var dec = window.fmtDuration(row.decisionMs);
+    return (up && dec) ? total + '  (' + up + ' upload · ' + dec + ' decision)' : total;
+  }
+
   function outcomeOf(row) {
     if (row.state === 'failed') return { key: 'failed', label: 'Did not complete', cls: 'badge-error' };
     if (row.state === 'running') return { key: 'running', label: 'Running', cls: '' };
@@ -264,10 +275,14 @@
         scope === 'mine'
           ? (row.receiptType || 'Uncategorised')
           : (row.employeeName || row.employeeEmail || 'Unnamed')));
-      main.appendChild(el('div', 'list-row-meta',
-        scope === 'mine'
-          ? fmtDate(row.submittedAt)
-          : fmtDate(row.submittedAt) + ' · ' + (row.receiptType || 'Uncategorised')));
+      var meta = scope === 'mine'
+        ? fmtDate(row.submittedAt)
+        : fmtDate(row.submittedAt) + ' · ' + (row.receiptType || 'Uncategorised');
+      // Only claims we actually timed carry a duration. An untimed one simply
+      // has a shorter meta line rather than a placeholder that reads as zero.
+      var took = window.fmtDuration ? window.fmtDuration(row.totalMs) : null;
+      if (took) meta += ' · ' + took;
+      main.appendChild(el('div', 'list-row-meta', meta));
       btn.appendChild(main);
 
       btn.appendChild(el('span', 'list-row-amt', row.submittedTotal || '—'));
@@ -409,6 +424,7 @@
       ['Manager', row.managerName],
       ['Submitted', fmtDate(row.submittedAt)],
       ['Checked', row.completedAt ? fmtDate(row.completedAt) : 'Not finished'],
+      ['Time to decision', timingText(row)],
     ]));
     host.appendChild(who);
 
