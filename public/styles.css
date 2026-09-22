@@ -591,14 +591,15 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
 
 /* ---- time to decision -------------------------------------------------- *
    Deliberately the one dashed, tinted thing on the result card. It is the
-   newest number on the page and the one a viewer has no other way to learn,
-   so it gets to interrupt the reading order once.                           */
+   number a viewer has no other way to learn, so it gets to interrupt the
+   reading order once.                                                       */
 
 .ttd { margin: 4px 0 16px; }
 
-/* Grid, not flex: the two 1fr columns are equal by construction, so the value
-   is centred on the box itself rather than on whatever space the label and the
-   badge happen to leave. The breakdown line below shares that axis. */
+/* Grid, not flex, and three columns for two children: the empty 1fr on the
+   right balances the label on the left, which is what puts the value on the
+   centre line of the box rather than in the middle of the space the label
+   happens to leave. The breakdown line below shares that axis. */
 .ttd-bar {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px;
   padding: 11px 14px;
@@ -621,17 +622,6 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
   color: var(--ink-1);
 }
 
-/* Ink on tint, flipped. One rule reads well in both themes: light gives dark
-   brown on cream, dark gives near-black on tan. White on the amber failed
-   contrast in both. */
-.ttd-new {
-  justify-self: end;
-  font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  padding: 3px 7px; border-radius: 4px;
-  background: var(--warn-ink); color: var(--warn-bg);
-  white-space: nowrap;
-}
-
 .ttd-break {
   margin: 7px 0 0; text-align: center;
   font-family: var(--mono); font-size: 12px;
@@ -641,10 +631,10 @@ input.invalid, select.invalid { border-color: var(--err-ink); }
 }
 
 @media (max-width: 560px) {
-  /* Label and badge share the top line, the value drops beneath them, and
-     everything left-aligns with the rest of the card. */
-  .ttd-bar { grid-template-columns: 1fr auto; gap: 8px 10px; }
-  .ttd-v { grid-column: 1 / -1; text-align: left; }
+  /* Too narrow to centre anything: label and value stack and left-align with
+     the rest of the card. */
+  .ttd-bar { grid-template-columns: 1fr; gap: 6px; }
+  .ttd-v { text-align: left; }
   .ttd-break { text-align: left; }
 }
 
