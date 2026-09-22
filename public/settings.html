@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Expense Receipt Validation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="is-loading">
+
+  <aside class="side" id="side"></aside>
+
+  <div class="app-main">
+  <main class="shell">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="workspace.html?scope=all">Expense Receipt Validation</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">Settings</span>
+    </nav>
+
+    <div class="intro">
+      <h1>Settings</h1>
+      <p>Workflow connection details for this instance, and how to reach Opus support.</p>
+    </div>
+
+    <p class="page-error" id="page-error" hidden></p>
+
+    <div class="stack" id="settings-body" hidden>
+
+      <section class="card set-card" aria-labelledby="h-conn">
+        <h2 class="set-eyebrow" id="h-conn">Workflow connection</h2>
+        <dl class="set-rows" id="conn-rows"></dl>
+      </section>
+
+      <section class="card set-card" aria-labelledby="h-storage">
+        <h2 class="set-eyebrow" id="h-storage">Storage</h2>
+        <dl class="set-rows" id="storage-rows"></dl>
+      </section>
+
+      <section class="card set-card" aria-labelledby="h-support">
+        <h2 class="set-eyebrow" id="h-support">Support</h2>
+        <p class="set-lede">Need help with this instance or the underlying Opus workflow?</p>
+        <a class="btn btn-primary" id="support-btn" href="#">Contact Opus customer support</a>
+        <p class="hint" id="support-hint"></p>
+      </section>
+
+    </div>
+
+    <div class="welcome-loading" id="loading">
+      <div class="spinner" aria-hidden="true"></div>
+    </div>
+
+  </main>
+
+  <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
+
+  </div>
+
+  <script src="nav.js"></script>
+  <script src="support.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>
