@@ -1,226 +1,272 @@
-# Account Transfer Validation console
+# Expense Receipt Validation
 
-A browser front end for the Opus workflow **Account Transfer Validation**
-(`471f6915-8b0d-43ed-8d11-fdc226d48abc`). An advisor uploads a transfer packet,
-the workflow runs, and the console shows the in good order or not in good order
-decision, the reasons, the plain English explanation and what was read from the
-documents.
+Employee-facing web app for the Applied AI **Expense Receipt Validation** workflow in Opus.
 
-The browser never talks to Opus. The service key lives on the server and the
-server is the only thing that calls out.
+An employee uploads a receipt, enters the total they're claiming and their details.
+The backend sends all three to Opus, polls until the run finishes, and shows the
+validation report. The browser never talks to Opus — only to this app's own routes.
 
-## Shape
+---
 
-```
-server.js          Express app, exports `app`. Holds the key. All /api routes.
-api/index.js       module.exports = require('../server')   <- the Vercel entry point
-lib/opus.js        the only file that calls Opus. Variable ids live here as constants.
-lib/store.js       optional history storage, KV REST or Redis over TCP
-lib/auth.js        the six demo accounts, roles, and the signed session cookie
-public/            eight pages, one script per page, one stylesheet
-public/samples/    three sample packets, so a tester needs no file of their own
-vercel.json        rewrites /api/(.*) to /api/index.js
-```
+## Before you start
 
-## Who can do what
+Generate a **fresh** Opus service key (left menu → Run → API → Generate API Key).
+The key is shown once. Do not reuse a key that has been pasted into chat, email or
+a ticket.
 
-| Role | Sign in at | Can |
-|---|---|---|
-| Employee | `/login.html` | Submit a packet, see and open only their own runs |
-| Manager | `/review-login.html` | Work the transfer requests, open any case, read the packet, approve, send back or reject with a note, filter by period, export CSV, see the report |
-| Administrator | `/review-login.html` | Everything a manager can do, submit packets, and see the workflow, deployment and account settings |
-
-Six demo accounts, seeded in `lib/auth.js`:
-
-| Name | Email | Role | Password |
-|---|---|---|---|
-| Amelia Grant | employee1@aaico.demo | Employee | Employee1-2026 |
-| Daniel Osei | employee2@aaico.demo | Employee | Employee2-2026 |
-| Priya Raman | employee3@aaico.demo | Employee | Employee3-2026 |
-| Hana Suzuki | manager1@aaico.demo | Manager | Manager1-2026 |
-| Marcus Bell | manager2@aaico.demo | Manager | Manager2-2026 |
-| Nadia Farouk | admin@aaico.demo | Administrator | Admin-2026 |
-
-Both doors list all six accounts, grouped by role, and one click fills the
-email and the password. Either door accepts any of them: picking a manager on
-the employee page signs in as a manager and lands on the transfer requests,
-rather than bouncing back with an error while holding correct credentials. The
-two pages differ only in their wording.
-
-Replace the whole set without touching code by setting `APP_USERS`:
-
-```
-APP_USERS="a@firm.com|advisor|secret|Ana Diaz, r@firm.com|reviewer|secret|Rob Lee"
-```
-
-Format is `email|role|password|display name`, comma or newline separated, role
-one of advisor, reviewer, admin. Once `APP_USERS` is set the demo box disappears
-by itself. Passwords are hashed with scrypt at boot and compared in constant
-time; they are never written to storage.
-
-Sessions are a signed cookie, HttpOnly, SameSite Lax, twelve hours, with no
-session table to keep. Set `SESSION_SECRET` to a long random string in the
-project environment: without it the app derives a key from the service key,
-which works but means rotating the service key signs everyone out.
-
-Plain HTML, CSS and ES5 flavoured JavaScript in `public/`. No bundler, no
-framework, no build step.
-
-## The workflow contract
-
-Read from the live workflow, version 3, on 17 September 2026.
-
-| Piece | Value |
-|---|---|
-| Base URL | `https://operator.opus.com/api/v1` |
-| Auth header | `x-service-key` |
-| Input | `workflow_input_rzn32jqyr`, type `file`, "Submitted Docs" |
-| Output | `workflow_output_19c3j6l3b`, type `object`, "Assembled Result" |
-| Output | `workflow_output_0pk3ch2zt`, type `json_string`, "Explanation" |
-| Output | `workflow_output_2p2xhf3ys`, type `str`, "Assembled Error" |
-
-Call sequence: `POST /file/upload/presigned` for a slot, `PUT` the bytes to the
-presigned URL, `POST /case`, `POST /case/{id}/execute`, poll
-`GET /case/{id}/status`, then `GET /case/{id}/results`. Results answer `202`
-until the case reaches a terminal status.
-
-### There is no way to read a file back
-
-The Opus file API has two endpoints, both for uploading. `fileUrl` is described
-as a permanent URL, but it is an identifier to quote in an execute call, not
-something that answers a `GET`: `files.opus.com` serves `/upload?token=` with a
-five minute JWT and `/download?token=` with a token nothing mints, and the
-media path itself answers `404` to the service key, to a browser session and to
-an anonymous request alike. `accessScope` takes `workspace` or `unlisted` and
-changes neither.
-
-So the packet a manager opens is this console's own copy. The browser sends the
-same bytes a second time, to `PUT /api/case/{id}/packet`, in 512 KB chunks,
-because both a serverless request body and a REST store request are capped well
-below the 10 MB a packet may run to. They are stored base64 with a ninety day
-expiry and reassembled by `GET /api/case/{id}/document`. It is best effort: the
-validation is already running by then, so a store that is off or full costs a
-preview and nothing else. A run with no kept copy says so on the case page.
-
-All of that is in `lib/opus.js`. If the workflow changes, the variable ids at
-the top of that file are the only thing to edit.
-
-## Deploying to Vercel
-
-1. Push these files to the repository.
-2. Project settings, Environment Variables, add `OPUS_SERVICE_KEY`. Nothing else
-   is required; the base URL and the workflow id have working defaults.
-3. Redeploy. **Environment changes never reach an existing build.** Adding a
-   variable or connecting a store does nothing at all until the next deploy.
-4. Open `/api/health`. It reports which variables are missing and whether
-   history storage is reachable. **Check `serviceKeyLength` there: the Opus
-   service key is 97 characters including its leading underscore.**
-
-### The dropped underscore
-
-An Opus key starts with `_`, which is the single easiest character to lose when
-copying a value into a hosting dashboard: a double click selects the word and
-leaves the underscore behind. The result is a `401 Invalid or expired API key`
-that reads like a rotated key rather than a typo.
-
-The client handles it. A key that does not start with an underscore gets exactly
-one retry with the underscore restored, and whichever form Opus accepts is
-remembered for the life of the process. `/api/health` reports
-`serviceKeyRepaired: true` when that happened, so the real fix, correcting the
-variable, is still visible rather than hidden. Nothing else about the key is
-guessed, and leading or trailing whitespace is trimmed for the same reason.
-
-### History storage, optional
-
-Connect a KV or Upstash Redis store to the project, then redeploy. Vercel injects
-the credentials with a project prefix, for example `MYSTORE_KV_REST_API_URL`, so
-`lib/store.js` matches them **by suffix** and supports both the REST pair
-(`*_KV_REST_API_URL` and `*_KV_REST_API_TOKEN`) and a TCP `*_REDIS_URL`.
-
-Without a store the console still validates packets. It says history is not
-switched on, and nothing is kept between visits.
-
-### Uploads
-
-The browser uploads straight to the presigned URL, which keeps large files out
-of the serverless function. If the storage bucket refuses the page's origin, the
-upload falls back through `PUT /api/upload-proxy`, which caps at 4 MB because a
-serverless request body cannot carry the full 10 MB that Opus allows. Both paths
-are exercised in the local harness.
-
-## Running it locally
+## Local setup
 
 ```bash
 npm install
-OPUS_SERVICE_KEY=... npm start     # http://localhost:3000
+cp .env.example .env      # then paste your new service key into .env
+npm start                 # http://localhost:3000
 ```
 
-## What each screen does
+`GET /api/health` reports any environment variable that's still missing.
 
-- **New validation**, employees and the admin. Drop a packet in, or load one of
-  three sample packets with one click: an unsigned IRA at $95,000, a signed
-  joint account at $1,284,500, and an account in a second currency at
-  AED 4,120,000.
-- **Transfer requests**, managers and the admin. Every finished run, filtered by
-  this month, last month, a named month or a custom range, with a CSV export
-  that honours the same range.
-- **All runs** and **My runs**. The same list scoped to the person looking.
-- **Report**, managers and the admin. Approved against rejected amounts by month,
-  with the same period controls, a legend, direct labels, a tooltip on every
-  bar and the same figures as a table. Amounts are grouped by the currency they
-  were printed in; adding dirhams to dollars would be a lie, so the chart shows
-  one currency at a time and offers a switch when more than one is present.
-- **Settings**. Theme and the support contact for everyone who can reach it;
-  the workflow, deployment and account roster for the admin only.
+## Deploy
 
-### The chart palette
+```bash
+git init
+git remote add origin <your repo URL>
+git add .
+git commit -m "Initial version"
+git push -u origin main
+```
 
-Two series, so two categorical hues: the brand blue for approved, orange for
-rejected. Never green against red, which is the pair most people with colour
-vision deficiency cannot separate, on a chart that is about money. The pair was
-checked with the data visualisation validator and passes the lightness band,
-chroma floor, colour vision separation and contrast in both light and dark. Dark
-mode uses a slightly deeper blue, because the brand blue is too light to sit on
-a dark card.
+Then on vercel.com: Import Project → pick the repo → **add every variable from
+`.env` under Settings → Environment Variables** → Deploy.
 
-### Contacting Opus support
+Vercel cannot see your local `.env`. A missing environment variable is the single
+most common reason the app works locally and fails live. After that, every push to
+`main` redeploys automatically.
 
-Every screen has a support link, and the failure states repeat it. The email
-opens with the workflow id in the subject, and the body prefilled with the case
-id, the run status and the time. Set `SUPPORT_EMAIL` to change the address; it
-defaults to `support@opus.com`.
+---
 
-## Review and privacy behaviour
+## Workflow contract
 
-- Advisors are scoped by owner, and a case belonging to someone else answers
-  `404`, never `403`, so the list cannot be used to probe for other people's
-  work.
-- A social security number is masked at the last moment before rendering, in
-  findings text, in the advisor explanation and in the extracted fields. The
-  workflow quotes firm records verbatim, so the masking cannot be left to it.
-- Raw workflow output and the copy JSON button are reviewer tools and are not
-  rendered for advisors.
-- The submitted packet is served from this console's own copy, so a reviewer
-  never needs an Opus sign in of their own to read it. Only the person who
-  submitted a case may attach its packet, and only before a decision is
-  recorded.
-- A decision needs a note unless it is an approval, and a run that never
-  finished is kept out of the waiting count rather than being offered for
-  approval.
+Workflow: `305a53b2-a030-490d-b6fa-bd331c05c72a` — *Expense Receipt Validation* V7.1
 
-## Notes worth keeping
+**Inputs** (all required)
 
-- `toRow()` in `server.js` is the single projection from a stored record to an
-  API row. Every screen reads it, so every screen agrees.
-- Money is stored both ways: the printed string exactly as the workflow produced
-  it (`submittedValue`), plus the parsed `valueAmount` and `valueCurrency`.
-  Screens display the printed string, so a non dollar currency still reads right.
-- A record the caller may not see answers `404`, never `403`.
-- Every Opus response is read as text and then parsed. A platform 413, 502 or
-  crash returns an HTML error page, and a bare `res.json()` would throw a parse
-  error that hides the status code.
-- The stylesheet carries `[hidden] { display: none !important; }` on purpose.
-  `[hidden]` is only `display: none` in the user agent sheet, so any author rule
-  that sets `display` beats it.
-- Verdict colour is never the only channel. Every verdict, severity and status
-  also carries a glyph and a word.
+| Field | Variable ID | Type |
+|---|---|---|
+| Employee Record | `workflow_input_njojvf43i` | Text — JSON string |
+| Receipt | `workflow_input_mgwnb0jd6` | File, single, ≤10MB |
+| Submitted Total Expense Amount | `workflow_input_kf0w4zjdj` | Text — `"30 USD"` |
+
+**Outputs**
+
+| Field | Variable ID | Type |
+|---|---|---|
+| Expense Validation Summary Report | `workflow_output_mca30b5t9` | JSON string |
+| Expense Receipt | `workflow_output_b5wjhtz1l` | File |
+| Employee Record | `workflow_output_4lotpdmad` | Text |
+
+The Employee Record JSON is assembled server-side in `buildEmployeeRecord()`:
+
+```json
+{
+  "full_name": "...",
+  "phone_number": "...",
+  "date_of_birth": "YYYY-MM-DD",
+  "gender": "MALE|FEMALE",
+  "job_title": "...",
+  "email": "...",
+  "manager": { "name": "..." }
+}
+```
+
+The summary report parses to:
+
+```json
+{
+  "approved": true,
+  "receipt_type": "Accommodation",
+  "date": "2024-04-23",
+  "extracted_total": { "amount": "30.00", "currency": "USD" },
+  "submitted_total": { "amount": "30.00", "currency": "USD" },
+  "amounts_match": true,
+  "receipt_type_reasoning": "...",
+  "amount_match_reasoning": "...",
+  "summary": "..."
+}
+```
+
+## Opus API calls used
+
+Base `https://operator.opus.com/api/v1`, header `x-service-key`.
+
+1. `POST /file/upload/presigned` → `{ presignedUrl, fileUrl }`
+2. `PUT <presignedUrl>` — raw bytes, **no service key** (this goes to S3)
+3. `POST /case` → `{ caseId }`
+4. `POST /case/{caseId}/execute` — payload keyed by the `workflow_input_*` IDs
+5. `GET /case/{caseId}/status` → `PENDING` · `IN_PROGRESS` · `WAITING` · `COMPLETED` · `FAILED` · `CANCELLED` · `TIMED_OUT`
+6. `GET /case/{caseId}/results` → outputs keyed by `workflow_output_*`
+
+The workflow has no human-review node, so there is no webhook route. If one is
+added later, the webhook handler goes in `server.js` next to `/api/status`.
+
+## Files
+
+```
+server.js             backend — holds the key, the only thing that talks to Opus
+api/index.js          Vercel entry point (imports the exported Express app)
+vercel.json           routes /api/* to api/index.js, the rest to public/
+lib/auth.js           sessions, password hashing, role checks
+package.json          dependencies and the start script
+
+public/index.html     sign-in and the demo accounts
+public/welcome.js     sign-in behaviour
+public/submit.html    submit a claim: form, progress, result, failure
+public/app.js         form handling, upload, polling, result rendering
+public/workspace.html my claims / team claims / all claims
+public/workspace.js   the claims list, filters, totals and the detail panel
+public/report.html    the report: pinned ribbon plus five chapters
+public/report.js      report figures, charts and animation
+public/settings.html  connection and storage status
+public/settings.js    settings behaviour
+public/nav.js         the hover-expanding side rail, built from your roles
+public/support.js     the Contact Opus support mail link
+public/duration.js    one duration formatter, shared by the three pages
+                      that show a time to decision
+public/styles.css     design tokens, light and dark, and every component
+public/logo.png       Applied AI wordmark (transparent, inverts in dark mode)
+public/samples/*.pdf  the four sample receipts behind the scenario buttons
+
+.env.example          copy to .env; the same values go into Vercel by hand
+```
+
+Every page loads `styles.css`, then `nav.js`, then its own script. The three that
+print a duration load `duration.js` in between: drop it and they render no
+timings at all.
+
+## Notes
+
+- Receipt limit is 10MB — Opus's cap, enforced in the browser and again in multer.
+- Polling runs every 1s for the first minute, then every 3s, for up to 5 minutes
+  total, after which it tells the employee to check with HR rather than resubmitting
+  and creating a duplicate case. The fast opening minute is deliberate: the decision
+  clock stops when the server first *sees* a run finish, so the poll gap is the error
+  bar on every duration the app prints, and most runs land inside that minute.
+- A run observed more than 5 minutes after it started is recorded as **not timed**
+  rather than given a number. Closing the tab mid-run and reopening the page an hour
+  later would otherwise write "1h 04m" into the record as if it were a measurement.
+  Untimed claims show no duration anywhere, and the report's average says how many
+  claims it covers so the count can be compared against the claim count beside it.
+- Employee details are remembered in `localStorage` on the employee's own device only,
+  and only while the "Remember my details" box is ticked.
+- Colors live as CSS custom properties at the top of `styles.css`. To apply the
+  AppliedAI UI Guidelines palette, change the tokens; nothing below them needs editing.
+
+---
+
+## Signing in — demo accounts
+
+Seven demo accounts are built into `lib/auth.js` with scrypt-hashed passwords.
+Nothing to configure: deploy and sign in.
+
+| Role | Email | Name |
+|---|---|---|
+| Employee | mahmoud@demo.aaico.com | Mahmoud Sharshira |
+| Employee | layla@demo.aaico.com | Layla Haddad |
+| Employee | karim@demo.aaico.com | Karim Nasser |
+| Employee | noor@demo.aaico.com | Noor Abdallah |
+| Manager | omar@demo.aaico.com | Omar Busaileh |
+| Manager | sara@demo.aaico.com | Sara Khalil |
+| Admin | admin@demo.aaico.com | Portal Admin |
+
+Passwords were generated when the accounts were created and are not recorded in
+this repository — only their hashes are. To change one, generate a fresh salt and
+scrypt hash (N=16384, r=8, p=1, keylen=64) and replace the pair in `lib/auth.js`.
+
+Mahmoud and Layla report to Omar Busaileh; Karim and Noor to Sara Khalil. The
+Manager field on the form is prefilled accordingly, which is what routes each
+claim to the right reviewer.
+
+### This is a demo mechanism, not a security boundary
+
+- Accounts and hashes live in the repository.
+- Anyone with the address and a password can sign in.
+- `SESSION_SECRET` falls back to a value in the source when unset, so on a
+  default deployment session cookies are forgeable by anyone who reads the file.
+
+Set `SESSION_SECRET` in Vercel to close that last one. Replace the accounts with
+a real identity provider before anything that matters goes through it — the
+session, role and scope machinery around them does not change.
+
+### Roles
+
+| Role | How you get it | What you see |
+|---|---|---|
+| Employee | every account | Submit a claim · My claims |
+| Manager | the account says so, **or** somebody names you on a claim | My team |
+| Admin | the account says so, or `ADMIN_EMAILS` lists you | All claims |
+
+Manager matching folds case and collapses spaces, so `Omar  BUSAILEH` finds
+`omar busaileh`. It is a name match: the name on the form has to match the
+manager's account name, and two people sharing a name would see each other's
+team.
+
+### Pages
+
+```
+/                            sign in, then pick a door
+/submit.html                 file a claim
+/workspace.html?scope=mine   your own claims
+/workspace.html?scope=team   claims naming you as manager
+/workspace.html?scope=all    every claim (admin)
+```
+
+One workspace page serves all three scopes. Asking for a scope you do not hold
+falls back to `mine`, and the server re-checks every request — the URL changes
+the view, never the permissions.
+
+---
+
+## Storage
+
+History lives in Redis, and every list view depends on it.
+
+1. **Vercel → Storage → Redis → Create → Connect to Project.** The code accepts
+   either REST credentials or a plain `REDIS_URL`, with or without a prefix.
+2. **Vercel → Storage → Blob → Create → Connect to Project.** Sets
+   `BLOB_READ_WRITE_TOKEN`, which is what lets anyone open the receipt file.
+3. **Redeploy.** Connecting a store adds variables but does not rebuild what is
+   already running.
+
+`GET /api/health`:
+
+```json
+{ "ok": true, "history": true, "storage": "tcp", "receiptArchive": true,
+  "signIn": true, "demoAccounts": 7, "sessionSecretIsDefault": true }
+```
+
+### Keys
+
+| Key | Holds |
+|---|---|
+| `expense:case:<caseId>` | the claim record |
+| `expense:index` | every claim, newest first |
+| `expense:emp:<email>` | one person's own claims |
+| `expense:mgr:<name>` | claims naming that manager |
+| `expense:managers` | every name ever given as a manager |
+
+### Routes
+
+| Route | Who |
+|---|---|
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me` | anyone |
+| `POST /api/submit`, `GET /api/status/:caseId` | signed in |
+| `GET /api/claims?scope=` | signed in, scope enforced |
+| `GET /api/claims/:caseId` | own, managed, or admin |
+| `GET /api/claims/:caseId/receipt` | own, managed, or admin |
+| `GET /api/claims.csv?scope=` | same rules as the list |
+
+A claim you may not see returns 404, not 403 — the response never confirms that
+someone else's claim exists.
+
+### Data you are storing
+
+Names, emails, job titles, phone numbers and receipt images are kept for a year
+(`RECORD_TTL_SECONDS` in `server.js`).
