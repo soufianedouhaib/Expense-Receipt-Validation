@@ -1,67 +1,88 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Settings — Expense Receipt Validation</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body class="is-loading">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings, Account Transfer Validation</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar" id="topbar"></header>
 
-  <aside class="side" id="side"></aside>
+    <main class="page" id="main" hidden>
+      <div class="page-head">
+        <h1>Settings</h1>
+        <p id="page-sub">Your preferences, and how to reach support.</p>
+      </div>
 
-  <div class="app-main">
-  <main class="shell">
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head"><h2>Appearance</h2></div>
+          <label class="field">
+            <span>Theme</span>
+            <select id="theme">
+              <option value="system">Follow the device</option>
+              <option value="light">Always light</option>
+              <option value="dark">Always dark</option>
+            </select>
+          </label>
+          <p class="card-sub" style="margin: 0">Saved in this browser only.</p>
+        </section>
 
-    <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="workspace.html?scope=all">Expense Receipt Validation</a>
-      <span aria-hidden="true">/</span>
-      <span aria-current="page">Settings</span>
-    </nav>
+        <section class="card">
+          <div class="card-head"><h2>Support</h2></div>
+          <div class="support-card">
+            <svg
+              class="ico"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 7l9 6 9-6" />
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+            </svg>
+            <div>
+              <p id="support-lead">
+                Something wrong with a run? Write to Opus support. The workflow id goes in the subject
+                automatically, which is the first thing they ask for.
+              </p>
+              <p style="margin-top: 12px">
+                <a class="btn btn-small" id="support-btn" href="#">Contact Opus support</a>
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
 
-    <div class="intro">
-      <h1>Settings</h1>
-      <p>Workflow connection details for this instance, and how to reach Opus support.</p>
-    </div>
+      <div class="grid-2" id="admin-only" hidden>
+        <section class="card">
+          <div class="card-head"><h2>Workflow</h2></div>
+          <dl class="kv" id="workflow-kv"></dl>
+        </section>
 
-    <p class="page-error" id="page-error" hidden></p>
+        <section class="card">
+          <div class="card-head"><h2>This deployment</h2></div>
+          <dl class="kv" id="deploy-kv"></dl>
+        </section>
+      </div>
 
-    <div class="stack" id="settings-body" hidden>
-
-      <section class="card set-card" aria-labelledby="h-conn">
-        <h2 class="set-eyebrow" id="h-conn">Workflow connection</h2>
-        <dl class="set-rows" id="conn-rows"></dl>
+      <section class="card" id="accounts-card" hidden>
+        <div class="card-head">
+          <h2>Accounts</h2>
+          <span class="pill" id="accounts-pill"></span>
+        </div>
+        <div id="accounts-body"></div>
       </section>
+    </main>
 
-      <section class="card set-card" aria-labelledby="h-storage">
-        <h2 class="set-eyebrow" id="h-storage">Storage</h2>
-        <dl class="set-rows" id="storage-rows"></dl>
-      </section>
+    <footer class="footer" id="footer"></footer>
 
-      <section class="card set-card" aria-labelledby="h-support">
-        <h2 class="set-eyebrow" id="h-support">Support</h2>
-        <p class="set-lede">Need help with this instance or the underlying Opus workflow?</p>
-        <a class="btn btn-primary" id="support-btn" href="#">Contact Opus customer support</a>
-        <p class="hint" id="support-hint"></p>
-      </section>
-
-    </div>
-
-    <div class="welcome-loading" id="loading">
-      <div class="spinner" aria-hidden="true"></div>
-    </div>
-
-  </main>
-
-  <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
-
-  </div>
-
-  <script src="nav.js"></script>
-  <script src="support.js"></script>
-  <script src="settings.js"></script>
-</body>
+    <script src="/common.js"></script>
+    <script src="/settings.js"></script>
+  </body>
 </html>

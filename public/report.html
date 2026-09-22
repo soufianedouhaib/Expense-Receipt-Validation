@@ -1,179 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Report — Expense Receipt Validation</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body class="is-loading">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Report, Account Transfer Validation</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar" id="topbar"></header>
 
-  <aside class="side" id="side"></aside>
+    <main class="page" id="main" hidden>
+      <div class="page-head">
+        <h1>Report</h1>
+        <p>How much was approved and how much was rejected, by the month it was submitted.</p>
+      </div>
 
-  <div class="app-main">
-  <main class="shell shell-wide">
-
-    <div class="intro">
-      <h1>Report</h1>
-      <p id="report-lede">What has been claimed, and how much of it cleared the amount check.</p>
-    </div>
-
-    <p class="page-error" id="page-error" hidden></p>
-
-    <div class="card report-card">
-
-      <!-- ---------------- pinned headline ribbon ---------------- -->
-      <div class="ribbon">
-        <div class="rb">
-          <span class="rb-k">Approved</span>
-          <span class="rb-v ok" id="k-approved">—</span>
-          <span class="rb-s" id="k-approved-sub">—</span>
-        </div>
-        <div class="rb">
-          <span class="rb-k">Needs attention</span>
-          <span class="rb-v warn" id="k-attention">—</span>
-          <span class="rb-s" id="k-attention-sub">—</span>
-        </div>
-        <div class="rb">
-          <span class="rb-k">Cleared</span>
-          <span class="rb-v" id="k-rate">—</span>
-          <span class="rb-s">by value</span>
-        </div>
-        <div class="rb">
-          <span class="rb-k">Claims</span>
-          <span class="rb-v" id="k-count">—</span>
-          <span class="rb-s" id="k-count-sub">—</span>
-        </div>
-
-        <div class="rb-controls">
-          <select id="rep-scope" aria-label="Whose claims" hidden>
-            <option value="team">My team</option>
-            <option value="all">Everyone</option>
-          </select>
-
-          <select id="rep-period" aria-label="Period">
-            <option value="this-month" selected>This month</option>
+      <section class="card">
+        <div class="toolbar">
+          <select id="filter-preset" aria-label="Period">
+            <option value="last-90">Last 90 days</option>
+            <option value="this-month">This month</option>
             <option value="last-month">Last month</option>
-            <option value="last-3">Last 3 months</option>
-            <option value="last-6">Last 6 months</option>
-            <option value="last-12">Last 12 months</option>
-            <option value="ytd">This year</option>
-            <option value="month">A single month…</option>
-            <option value="custom">Custom range…</option>
-            <option value="all">All time</option>
+            <option value="month">A specific month</option>
+            <option value="custom">Custom dates</option>
+            <option value="">All time</option>
           </select>
-
-          <input type="month" id="rep-month" aria-label="Month" hidden>
-          <input type="date" id="rep-from" aria-label="From" hidden>
-          <input type="date" id="rep-to" aria-label="To" hidden>
-          <select id="rep-currency" aria-label="Currency" hidden></select>
+          <input type="month" id="filter-month" hidden aria-label="Month" />
+          <span id="custom-wrap" hidden>
+            <input type="date" id="filter-from" aria-label="From" />
+            <input type="date" id="filter-to" aria-label="To" />
+          </span>
+          <select id="filter-currency" aria-label="Currency" hidden></select>
+          <span class="spacer"></span>
+          <span class="pill" id="range-pill"></span>
+          <a class="btn btn-quiet btn-small" id="export-link" href="/api/export.csv">Export CSV</a>
         </div>
-      </div>
 
-      <!-- ---------------- chapters ---------------- -->
-      <div class="chapters">
-        <nav class="chapter-list" id="chapter-list" aria-label="Report sections"></nav>
-        <div class="chapter-body" id="chapter-body" aria-live="polite"></div>
-      </div>
+        <div class="stats" id="report-stats"></div>
+      </section>
 
-    </div>
-
-  </main>
-
-  <footer class="foot"><span>Applied AI · Expense Receipt Validation</span></footer>
-  </div>
-
-  <!-- Panel templates. Kept in the page so the markup is readable rather than
-       built out of string concatenation in the script. -->
-  <template id="tpl-headline">
-    <div class="ch-panel">
-      <div class="headline">
-        <div class="headline-nums">
-          <p class="ch-eyebrow" data-slot="period">—</p>
-          <div class="big ok" data-slot="approved">0</div>
-          <p class="big-sub" data-slot="approved-sub">—</p>
-          <div class="big big-2 warn" data-slot="attention">0</div>
-          <p class="big-sub" data-slot="attention-sub">—</p>
+      <section class="card">
+        <div class="card-head">
+          <h2>Approved against rejected</h2>
+          <span class="pill" id="currency-pill" hidden></span>
         </div>
-        <figure class="ring-wrap">
-          <svg class="ring" viewBox="0 0 120 120" role="img" data-slot="ring-label">
-            <circle class="ring-track" cx="60" cy="60" r="48"></circle>
-            <circle class="ring-arc" cx="60" cy="60" r="48" data-slot="arc"></circle>
-            <text class="ring-pct" x="60" y="57" text-anchor="middle" data-slot="pct">0%</text>
-            <text class="ring-cap" x="60" y="74" text-anchor="middle">cleared</text>
-          </svg>
-          <figcaption class="ring-cap-text" data-slot="ring-note">—</figcaption>
-        </figure>
-      </div>
-    </div>
-  </template>
+        <p class="card-sub" style="margin: -6px 0 12px">
+          Amounts are the account value read from each packet, in the currency it was printed in.
+          Runs that were sent back, are still awaiting a decision, or never finished are counted in
+          the tiles above but are not plotted here.
+        </p>
+        <div class="viz-root" id="viz">
+          <div class="legend">
+            <span><i class="swatch-approved"></i>Approved</span>
+            <span><i class="swatch-rejected"></i>Rejected</span>
+          </div>
+          <div id="chart-host"></div>
+        </div>
+        <details class="raw" style="margin-top: 16px">
+          <summary>The same figures as a table</summary>
+          <div id="chart-table" style="padding: 0 14px 14px"></div>
+        </details>
+      </section>
+    </main>
 
-  <template id="tpl-chart">
-    <div class="ch-panel">
-      <div class="ch-head">
-        <div>
-          <p class="ch-eyebrow">Over time</p>
-          <h2 class="ch-title" data-slot="title">Approved and needing attention</h2>
-        </div>
-        <div class="legend">
-          <span class="legend-item"><span class="swatch swatch-ok"></span>Approved</span>
-          <span class="legend-item"><span class="swatch swatch-warn"></span>Needs attention</span>
-        </div>
-      </div>
-      <div class="chart-wrap">
-        <div class="chart" data-slot="chart"></div>
-        <div class="chart-tip" data-slot="tip" hidden></div>
-      </div>
-      <p class="chart-empty" data-slot="empty" hidden>No claims in this period.</p>
-      <details class="chart-data">
-        <summary>See the numbers</summary>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead><tr><th scope="col">Month</th><th scope="col">Approved</th><th scope="col">Needs attention</th><th scope="col">Claims</th></tr></thead>
-            <tbody data-slot="table"></tbody>
-          </table>
-        </div>
-      </details>
-    </div>
-  </template>
+    <footer class="footer" id="footer"></footer>
 
-  <template id="tpl-bars">
-    <div class="ch-panel">
-      <div class="ch-head">
-        <div>
-          <p class="ch-eyebrow" data-slot="eyebrow">—</p>
-          <h2 class="ch-title" data-slot="title">—</h2>
-        </div>
-        <div class="legend">
-          <span class="legend-item"><span class="swatch swatch-ok"></span>Approved</span>
-          <span class="legend-item"><span class="swatch swatch-warn"></span>Needs attention</span>
-        </div>
-      </div>
-      <div class="rank-wrap">
-        <div class="rank" data-slot="rank"></div>
-        <div class="chart-tip" data-slot="tip" hidden></div>
-      </div>
-      <p class="chart-empty" data-slot="empty" hidden>Nothing to show for this period.</p>
-    </div>
-  </template>
-
-  <template id="tpl-chase">
-    <div class="ch-panel">
-      <div class="ch-head">
-        <div>
-          <p class="ch-eyebrow">Needs chasing</p>
-          <h2 class="ch-title" data-slot="title">—</h2>
-        </div>
-      </div>
-      <div class="chase" data-slot="list"></div>
-      <p class="chart-empty" data-slot="empty" hidden>Nothing outstanding — every claim in this period cleared the check.</p>
-    </div>
-  </template>
-
-  <script src="nav.js"></script>
-  <script src="report.js"></script>
-</body>
+    <script src="/common.js"></script>
+    <script src="/report.js"></script>
+  </body>
 </html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advisor sign in, Account Transfer Validation</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="signin-page" data-mode="advisor">
+    <header class="topbar" id="topbar"></header>
+
+    <main class="page signin" id="main" hidden>
+      <section class="card signin-card">
+        <img class="signin-logo" src="/logo.png" alt="Applied AI" />
+        <span class="pill pill-info" style="margin-bottom: 10px"
+          ><span class="glyph">▪</span>Employee access</span
+        >
+        <h1>Validate a transfer packet</h1>
+        <p class="card-sub" id="signin-lead">
+          Sign in to validate a transfer packet and to see the runs you have submitted.
+        </p>
+
+        <form id="signin-form">
+          <div id="signin-error" class="notice notice-bad" hidden style="margin-bottom: 14px"></div>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" id="email" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input type="password" id="password" autocomplete="current-password" required />
+          </label>
+
+          <button type="submit" class="btn" id="signin-btn" style="width: 100%">Sign in</button>
+        </form>
+
+        <div id="demo-title" class="card-sub" hidden style="margin: 18px 0 0">Pick an account to fill the form, then sign in. Any of them works from this page, and each one lands on its own home. Everything here is test data.</div>
+        <div id="demo-list" class="demo-list"></div>
+
+        <p class="card-sub signin-switch">
+          Reviewing transfers instead? <a href="/review-login.html">Manager sign in</a>
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer" id="footer"></footer>
+
+    <script src="/common.js"></script>
+    <script src="/login.js"></script>
+  </body>
+</html>

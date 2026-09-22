@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review queue, Account Transfer Validation</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar" id="topbar"></header>
+
+    <main class="page" id="main" hidden>
+      <div class="page-head">
+        <h1>Transfer requests</h1>
+        <p>
+          Every finished transfer request, newest first. Open one to see the findings, the packet
+          that was submitted, and to record your decision.
+        </p>
+      </div>
+
+      <div class="stats" id="queue-stats"></div>
+
+      <section class="card" style="margin-top: 16px">
+        <div class="toolbar">
+          <select id="filter-preset" aria-label="Period">
+            <option value="">All time</option>
+            <option value="this-month">This month</option>
+            <option value="last-month">Last month</option>
+            <option value="last-7">Last 7 days</option>
+            <option value="month">A specific month</option>
+            <option value="custom">Custom dates</option>
+          </select>
+          <input type="month" id="filter-month" hidden aria-label="Month" />
+          <span id="custom-wrap" hidden>
+            <input type="date" id="filter-from" aria-label="From" />
+            <input type="date" id="filter-to" aria-label="To" />
+          </span>
+          <select id="filter-state" aria-label="Filter by review state">
+            <option value="pending">Awaiting review</option>
+            <option value="">All states</option>
+            <option value="unfinished">Did not finish</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="returned">Sent back</option>
+          </select>
+          <select id="filter-verdict" aria-label="Filter by workflow verdict">
+            <option value="">All outcomes</option>
+            <option value="IGO">In good order</option>
+            <option value="NIGO">Not in good order</option>
+          </select>
+          <input type="search" id="filter-text" placeholder="Search runs" />
+          <span class="spacer"></span>
+          <span class="pill" id="count-pill">0 runs</span>
+          <a class="btn btn-quiet btn-small" id="export-link" href="/api/export.csv">Export CSV</a>
+        </div>
+        <div id="queue-body"><div class="skeleton">Loading the queue</div></div>
+      </section>
+    </main>
+
+    <footer class="footer" id="footer"></footer>
+
+    <script src="/common.js"></script>
+    <script src="/review.js"></script>
+  </body>
+</html>
