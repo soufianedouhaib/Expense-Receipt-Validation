@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Validation result, Account Transfer Validation</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23387BF0'/%3E%3Cpath d='M9 16.4l4.9 4.9L23 12' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar" id="topbar"></header>
+
+    <main class="page" id="main" hidden>
+      <div class="page-head">
+        <h1 id="case-title">Validation</h1>
+        <div class="meta-row" id="case-meta"></div>
+      </div>
+
+      <div id="decision-slot"></div>
+
+      <div id="running" class="card waiting" hidden>
+        <div class="spinner"></div>
+        <h2 id="running-label">Checking your packet</h2>
+        <p id="running-note">
+          Reading the documents and running the checks. This usually takes a minute or two, and the
+          page updates itself.
+        </p>
+        <div class="bar"><i></i></div>
+        <div class="steps">
+          <span class="step">Reading the packet</span>
+          <span class="step">Extracting the record</span>
+          <span class="step">Running the three checks</span>
+          <span class="step">Assembling the decision</span>
+        </div>
+      </div>
+
+      <div id="failed" hidden></div>
+      <div id="result" hidden></div>
+      <div id="review-slot"></div>
+      <div id="document-slot"></div>
+
+      <div class="toolbar" id="actions" hidden style="margin-top: 18px">
+        <a class="btn" href="/" id="action-new">Validate another packet</a>
+        <a class="btn btn-quiet" href="/history.html" id="action-list">History</a>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-quiet btn-small" id="copy-json">Copy result JSON</button>
+      </div>
+    </main>
+
+    <footer class="footer" id="footer"></footer>
+
+    <script src="/common.js"></script>
+    <script src="/case.js"></script>
+  </body>
+</html>

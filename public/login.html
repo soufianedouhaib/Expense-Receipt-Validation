@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advisor sign in, Account Transfer Validation</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23387BF0'/%3E%3Cpath d='M9 16.4l4.9 4.9L23 12' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="signin-page" data-mode="advisor">
+    <header class="topbar" id="topbar"></header>
+
+    <main class="page signin" id="main" hidden>
+      <section class="card signin-card">
+        <img class="signin-logo" src="/logo.png" alt="Applied AI" />
+        <span class="pill pill-info" style="margin-bottom: 10px"
+          ><span class="glyph">▪</span>Employee access</span
+        >
+        <h1>Validate a transfer packet</h1>
+        <p class="card-sub" id="signin-lead">
+          Sign in to validate a transfer packet and to see the runs you have submitted.
+        </p>
+
+        <form id="signin-form">
+          <div id="signin-error" class="notice notice-bad" hidden style="margin-bottom: 14px"></div>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" id="email" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input type="password" id="password" autocomplete="current-password" required />
+          </label>
+
+          <button type="submit" class="btn" id="signin-btn" style="width: 100%">Sign in</button>
+        </form>
+
+        <div id="demo-title" class="card-sub" hidden style="margin: 18px 0 0">Pick an employee account to fill the form, then sign in. Everything here is test data.</div>
+        <div id="demo-list" class="demo-list"></div>
+
+        <div class="signin-switch">
+          <span>Reviewing transfers instead?</span>
+          <a class="btn btn-small" href="/review-login.html" id="switch-door">Manager sign in</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" id="footer"></footer>
+
+    <script src="/common.js"></script>
+    <script src="/login.js"></script>
+  </body>
+</html>
