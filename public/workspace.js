@@ -375,8 +375,11 @@
   function refreshClearControl() {
     var btn = $('clear-link');
     if (!btn) return;
-    // Nothing to clear when the scope already holds no more than we would keep.
-    btn.hidden = !canClear() || rows.length <= KEEP_ON_CLEAR;
+    /* Role and scope decide this, nothing else. The control does not come and
+       go with the number of claims: a button that disappears once the list is
+       short reads as a bug, and people stop trusting that it is there at all.
+       When there is nothing to clear, the prompt says so. */
+    btn.hidden = !canClear();
     if (btn.hidden) closeClearConfirm();
   }
 
@@ -388,13 +391,33 @@
   function openClearConfirm() {
     var box = $('clear-confirm');
     if (!box) return;
+
     var going = rows.length - KEEP_ON_CLEAR;
-    var of = scope === 'all'
-      ? 'of the ' + rows.length + ' claims in the system'
-      : "of your team's " + rows.length + ' claims';
-    $('clear-question').textContent =
-      'Delete ' + going + ' ' + of + ', keeping the ' + KEEP_ON_CLEAR +
-      ' most recent? This ignores the filters above and cannot be undone.';
+
+    if (going <= 0) {
+      /* Still worth opening: it answers "why did nothing happen?" rather than
+         leaving a button that looks broken. No destructive action offered, and
+         it drops the red, because this is information, not a warning. */
+      $('clear-question').textContent = rows.length === 0
+        ? 'There are no claims here to clear.'
+        : 'Nothing to clear. A clear always keeps the ' + KEEP_ON_CLEAR +
+          ' most recent, and this view holds only ' + rows.length +
+          (rows.length === 1 ? ' claim.' : ' claims.');
+      box.classList.add('is-info');
+      $('clear-go').hidden = true;
+      $('clear-cancel').textContent = 'Close';
+    } else {
+      var of = scope === 'all'
+        ? 'of the ' + rows.length + ' claims in the system'
+        : "of your team's " + rows.length + ' claims';
+      $('clear-question').textContent =
+        'Delete ' + going + ' ' + of + ', keeping the ' + KEEP_ON_CLEAR +
+        ' most recent? This ignores the filters above and cannot be undone.';
+      box.classList.remove('is-info');
+      $('clear-go').hidden = false;
+      $('clear-cancel').textContent = 'Cancel';
+    }
+
     box.hidden = false;
     $('clear-cancel').focus();
   }
