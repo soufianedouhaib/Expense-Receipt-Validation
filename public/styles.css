@@ -1141,6 +1141,41 @@ body.is-loading .split { visibility: hidden; }
 
 .count-export:hover { text-decoration: underline; text-underline-offset: 2px; }
 
+/* Clear sits beside Export but is not styled to invite a click: same size and
+   weight, quieter colour, and it only turns red once it is armed. */
+.count-clear {
+  background: none; border: 0; padding: 0;
+  font-family: inherit; cursor: pointer;
+  color: var(--ink-3);
+}
+
+.count-clear:hover { color: var(--err-ink); }
+
+.clear-confirm {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--err-line);
+  background: var(--err-bg);
+}
+
+.clear-confirm p {
+  margin: 0; font-size: 13px; line-height: 1.45;
+  color: var(--err-ink);
+}
+
+.clear-acts { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* The only destructive button in the app. It reuses the error tokens, so it
+   follows the theme instead of carrying its own red. */
+.btn-danger {
+  background: var(--err-ink);
+  border-color: var(--err-ink);
+  color: var(--err-bg);
+}
+
+.btn-danger:hover { filter: brightness(1.12); }
+
 /* --------------------------- guest entry ---------------------------- */
 
 .or-divider {

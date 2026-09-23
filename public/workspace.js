@@ -314,6 +314,8 @@
 
     $('count-attention').textContent = attention ? attention + ' need attention' : '';
     $('count-attention').hidden = attention === 0;
+
+    refreshClearControl();
   }
 
   function loadList(quiet) {
@@ -354,6 +356,82 @@
     if (win.to !== null) url += '&toMs=' + win.to;
     $('export-link').href = url;
   }
+
+  /* ------------------------------- clear -------------------------------- */
+
+  /* Clearing is scoped, permanent, and NOT filtered: the period and outcome
+     filters change what is on screen, not what gets deleted. The question says
+     so plainly, because "Clear" next to a filtered list invites the assumption
+     that it only clears what is visible. */
+  var KEEP_ON_CLEAR = 3;
+
+  function canClear() {
+    if (!me) return false;
+    if (scope === 'all') return me.roles.indexOf('admin') !== -1;
+    if (scope === 'team') return me.roles.indexOf('manager') !== -1;
+    return false;                      // never on your own claims
+  }
+
+  function refreshClearControl() {
+    var btn = $('clear-link');
+    if (!btn) return;
+    // Nothing to clear when the scope already holds no more than we would keep.
+    btn.hidden = !canClear() || rows.length <= KEEP_ON_CLEAR;
+    if (btn.hidden) closeClearConfirm();
+  }
+
+  function closeClearConfirm() {
+    var box = $('clear-confirm');
+    if (box) box.hidden = true;
+  }
+
+  function openClearConfirm() {
+    var box = $('clear-confirm');
+    if (!box) return;
+    var going = rows.length - KEEP_ON_CLEAR;
+    var of = scope === 'all'
+      ? 'of the ' + rows.length + ' claims in the system'
+      : "of your team's " + rows.length + ' claims';
+    $('clear-question').textContent =
+      'Delete ' + going + ' ' + of + ', keeping the ' + KEEP_ON_CLEAR +
+      ' most recent? This ignores the filters above and cannot be undone.';
+    box.hidden = false;
+    $('clear-cancel').focus();
+  }
+
+  function runClear() {
+    var go = $('clear-go');
+    go.disabled = true;
+    go.textContent = 'Clearing…';
+
+    api('/api/claims/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope: scope }),
+    })
+      .then(function (data) {
+        closeClearConfirm();
+        selectedId = null;            // whatever was selected may be gone
+        pageError('');
+        return loadList().then(function () {
+          if (data && data.failed) {
+            pageError(data.failed + ' claim(s) could not be removed. Try again.');
+          }
+        });
+      })
+      .catch(function (err) {
+        closeClearConfirm();
+        if (err.message !== 'signed-out') pageError(err.message);
+      })
+      .then(function () {
+        go.disabled = false;
+        go.textContent = 'Clear them';
+      });
+  }
+
+  if ($('clear-link')) $('clear-link').addEventListener('click', openClearConfirm);
+  if ($('clear-cancel')) $('clear-cancel').addEventListener('click', closeClearConfirm);
+  if ($('clear-go')) $('clear-go').addEventListener('click', runClear);
 
   function periodChanged() {
     var custom = $('filter-period').value === 'custom';

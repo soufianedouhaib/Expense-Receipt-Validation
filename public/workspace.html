@@ -72,7 +72,19 @@
             <span class="pill pill-sum" id="count-sum" hidden></span>
             <span class="pill" id="count-attention"></span>
             <a class="count-export" id="export-link" href="#">Export CSV</a>
+            <!-- Managers and admins only, and only on the team/all views. -->
+            <button type="button" class="count-export count-clear" id="clear-link" hidden>Clear</button>
           </span>
+        </div>
+
+        <!-- Clearing deletes claims for good, so it says what it is about to do
+             and waits for a second click rather than acting on the first. -->
+        <div class="clear-confirm" id="clear-confirm" hidden>
+          <p id="clear-question">This cannot be undone.</p>
+          <div class="clear-acts">
+            <button type="button" class="btn btn-ghost btn-sm" id="clear-cancel">Cancel</button>
+            <button type="button" class="btn btn-danger btn-sm" id="clear-go">Clear them</button>
+          </div>
         </div>
 
         <div class="list-rows" id="rows"></div>
