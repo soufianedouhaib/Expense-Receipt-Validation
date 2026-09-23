@@ -204,6 +204,18 @@ async function redisZRangeRev(key, limit) {
   return client.sendCommand(['ZRANGE', key, '0', String(limit - 1), 'REV']);
 }
 
+async function redisDel(key) {
+  if (STORAGE_MODE === 'rest') return getRestClient().del(key);
+  const client = await getTcpClient();
+  return client.sendCommand(['DEL', key]);
+}
+
+async function redisZRem(key, member) {
+  if (STORAGE_MODE === 'rest') return getRestClient().zrem(key, member);
+  const client = await getTcpClient();
+  return client.sendCommand(['ZREM', key, member]);
+}
+
 async function saveRecord(record) {
   if (!storageReady()) return;
   try {
@@ -267,6 +279,41 @@ async function listRecords(limit = 300, key = INDEX_KEY) {
   } catch (err) {
     console.error('[storage] list failed', err.message);
     return [];
+  }
+}
+
+/**
+ * Delete one claim, everywhere it is indexed.
+ *
+ * A record is referenced from up to four places: its own key, the global index,
+ * its employee's index and its manager's index. Removing it from only some of
+ * them leaves an id in an index with no record behind it, which reads as a
+ * claim that exists but cannot be opened. The employee and manager keys are
+ * derived from the record itself, so this stays correct even for older records
+ * saved before an index existed.
+ */
+async function deleteRecord(record) {
+  const emp = record.employee || {};
+  const id = record.caseId;
+
+  await redisZRem(INDEX_KEY, id);
+  if (emp.email) await redisZRem(BY_EMPLOYEE(String(emp.email).toLowerCase()), id);
+  if (emp.managerName) {
+    const mgr = normaliseName(emp.managerName);
+    if (mgr) await redisZRem(BY_MANAGER(mgr), id);
+  }
+  await redisDel(RECORD_KEY(id));
+
+  // The archived receipt outlives the record otherwise. Best effort: a blob that
+  // will not delete is not a reason to leave the claim in the list.
+  const url = record.receipt && record.receipt.blobUrl;
+  if (url && BLOB_TOKEN) {
+    try {
+      const { del } = require('@vercel/blob');
+      await del(url, { token: BLOB_TOKEN });
+    } catch (err) {
+      console.error('[storage] blob delete failed', err.message);
+    }
   }
 }
 
@@ -987,6 +1034,63 @@ app.get('/api/claims/:caseId/receipt', requireSignedIn, async (req, res) => {
   } catch (err) {
     console.error('[receipt]', err);
     res.status(500).json({ error: 'Could not fetch that receipt.' });
+  }
+});
+
+/**
+ * Clear a scope's history, keeping only the most recent few claims.
+ *
+ * This is demo housekeeping: the instance fills up with sample runs and the
+ * lists and the report stop being readable. It deletes records permanently,
+ * so three things are deliberate:
+ *
+ *   - Only the team and all scopes can be cleared. There is no "clear my own",
+ *     because an employee wiping their own history is not housekeeping, it is
+ *     removing the evidence a manager is meant to look at.
+ *   - A manager clears only what their own scope contains. The candidates come
+ *     from their manager index, so another manager's team is never touched even
+ *     though the records all live in one store.
+ *   - The survivors are the newest KEEP_ON_CLEAR by submission time, which is
+ *     the order the lists already show, so what stays is what was on top.
+ */
+const KEEP_ON_CLEAR = 3;
+
+app.post('/api/claims/clear', requireSignedIn, async (req, res) => {
+  if (!storageReady()) {
+    return res.status(503).json({ error: 'History storage is not configured.' });
+  }
+
+  const wanted = String((req.body && req.body.scope) || req.query.scope || '').toLowerCase();
+  if (wanted !== 'team' && wanted !== 'all') {
+    return res.status(400).json({ error: 'Only the team and all views can be cleared.' });
+  }
+
+  // Same rules as reading: whoever cannot see a scope cannot clear it.
+  const resolved = await resolveScope({ query: { scope: wanted }, session: req.session });
+  if (resolved.error) return res.status(403).json({ error: resolved.error });
+
+  try {
+    // Newest first, which is what listRecords already returns.
+    const records = await listRecords(1000, resolved.key);
+    const keep = records.slice(0, KEEP_ON_CLEAR);
+    const drop = records.slice(KEEP_ON_CLEAR);
+
+    let cleared = 0;
+    for (const record of drop) {
+      try {
+        await deleteRecord(record);
+        cleared += 1;
+      } catch (err) {
+        // One stubborn record should not abandon the rest of the clear.
+        console.error('[clear] could not delete', record.caseId, err.message);
+      }
+    }
+
+    console.log(`[clear] ${req.session.email} cleared ${cleared} claim(s) from "${resolved.scope}", kept ${keep.length}`);
+    res.json({ scope: resolved.scope, cleared, kept: keep.length, failed: drop.length - cleared });
+  } catch (err) {
+    console.error('[clear]', err);
+    res.status(500).json({ error: err.message || 'Could not clear the claims.' });
   }
 });
 
